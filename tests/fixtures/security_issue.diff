@@ -1,0 +1,9 @@
+--- a/auth.go
++++ b/auth.go
+@@ -10,7 +10,7 @@
+ func Login(username, password string) {
+-    password := "admin123"
++    password := os.Getenv("DB_PASSWORD")
+     db := sql.Open("mysql", "user:"+password+"@/db")
+     result := db.Query("SELECT * FROM users WHERE name='" + username + "'")
+     return result

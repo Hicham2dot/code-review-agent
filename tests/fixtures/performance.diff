@@ -1,0 +1,12 @@
+--- a/service.go
++++ b/service.go
+@@ -5,10 +5,10 @@
+ func ProcessLargeData(data []byte) {
+     for i := 0; i < len(data); i++ {
+         for j := 0; j < len(data); j++ {
+             for k := 0; k < len(data); k++ {
+                 fmt.Println(data[i])
+             }
+         }
+     }
+ }

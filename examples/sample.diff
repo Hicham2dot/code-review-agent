@@ -1,0 +1,15 @@
+--- a/example.go
++++ b/example.go
+@@ -1,10 +1,12 @@
+ package main
+
++import "fmt"
++
+ func Example() {
+     x := 10
+     y := 20
+     result := x + y
+
++    fmt.Println("Result:", result)
+     return result
+ }

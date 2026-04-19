@@ -1,0 +1,9 @@
+--- a/helper.go
++++ b/helper.go
+@@ -1,5 +1,6 @@
+ package main
+
++// Helper function to format strings
+ func FormatString(s string) string {
+     return strings.TrimSpace(s)
+ }
