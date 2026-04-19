@@ -2,6 +2,20 @@
 
 An intelligent CLI tool and API for automated code review using AI.
 
+## Status
+
+[![SonarCloud](https://sonarcloud.io/api/project_badges/measure?project=code-review-agent&metric=alert_status)](https://sonarcloud.io/project/overview?id=code-review-agent)
+
+| Composant | Statut |
+|-----------|--------|
+| Structure du projet | done |
+| GitHub repository | done |
+| SonarCloud integration | done |
+| Diff Parser | TODO - Semaine 1 |
+| Local Analyzer | TODO - Semaine 2 |
+| LLM Integration (Claude) | TODO - Semaine 3 |
+| Docker + Tests | TODO - Semaine 4 |
+
 ## Features
 
 - AI-powered code analysis (Claude, GPT-4, Ollama)
@@ -55,6 +69,27 @@ cache:
 make test        # Run tests
 make build       # Build binary
 make docker-build # Build Docker image
+```
+
+## Project Structure
+
+```
+code-review-agent/
+├── .github/workflows/sonar.yml   # SonarCloud CI
+├── sonar-project.properties      # SonarCloud config
+├── cmd/main.go                   # Entry point CLI
+├── internal/
+│   ├── models/types.go           # Data structures
+│   ├── parser/diff.go            # Diff parser
+│   ├── analyzer/local.go         # Static analysis
+│   ├── analyzer/llm.go           # LLM client
+│   ├── formatter/                # JSON/Markdown/CLI output
+│   ├── cache/filedb.go           # File-based cache
+│   └── config/config.go          # Configuration
+├── tests/fixtures/               # Sample diffs
+├── Dockerfile
+├── docker-compose.yml
+└── Makefile
 ```
 
 ## License
