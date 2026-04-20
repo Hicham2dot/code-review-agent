@@ -1,0 +1,172 @@
+================================================================
+CODE REVIEW AGENT — DESCRIPTION COMPLÈTE DES FICHIERS
+================================================================
+
+MODULE: go.mod
+  - Déclare le module "code-review-agent" (Go 1.21)
+  - Dépendances : anthropic-sdk-go (Claude API), cobra (CLI), go-openai (GPT, commenté)
+  - Tout le projet importe ce module
+
+----------------------------------------------------------------
+POINT D'ENTRÉE
+----------------------------------------------------------------
+
+cmd/main.go
+  - Fonction main() : affiche la version et le message d'usage
+  - Accepte 3 commandes : analyze, batch, cache-clear
+  - STATUT : stub — pas encore branché aux autres modules
+  - RÔLE FUTUR : orchestrer config → cache → parser → analyzer → formatter
+
+----------------------------------------------------------------
+MODÈLES PARTAGÉS (utilisés par tous les modules)
+----------------------------------------------------------------
+
+internal/models/types.go
+  - Issue        : un problème détecté (ID, type, sévérité, localisation, message, suggestion, confiance, source)
+  - Location     : position dans le fichier (file, start_line, end_line)
+  - AnalysisResult : résultat complet d'une analyse (timestamp, hash du diff, liste d'Issues, Summary, durée)
+  - Summary      : agrégat statistique (nb critical/major/minor, qualité globale, confiance moyenne)
+  - DiffHunk     : un bloc de diff parsé (fichier, lignes ajoutées/supprimées, contexte)
+  - Importé par : parser, analyzer (local + llm), formatter, cache
+
+----------------------------------------------------------------
+PIPELINE D'ANALYSE
+----------------------------------------------------------------
+
+  input.diff
+      │
+      ▼
+  internal/parser/diff.go        ← ParseDiff(content string) → []DiffHunk
+      │  lit le format unified diff et extrait les blocs modifiés
+      ▼
+  internal/analyzer/local.go     ← LocalAnalyze(code string) → []Issue
+      │  détecte les patterns dangereux sans IA (SQL injection, secrets, etc.)
+      │
+  internal/analyzer/llm.go       ← LLMAnalyze(code string, provider string) → []Issue
+      │  envoie le diff à Claude / GPT-4 / Ollama et retourne des Issues
+      ▼
+  internal/formatter/
+      ├── json.go      FormatJSON(results)     → string JSON
+      ├── markdown.go  FormatMarkdown(results) → string Markdown
+      └── cli.go       FormatCLI(results)      → string coloré pour terminal
+      ▼
+  stdout / fichier de sortie
+
+STATUT : toutes ces fonctions sont des stubs (retournent []/{}/nil)
+
+----------------------------------------------------------------
+SERVICES TRANSVERSAUX
+----------------------------------------------------------------
+
+internal/cache/filedb.go
+  - Get(hash string) → interface{}   : récupère une analyse depuis le cache
+  - Set(hash, data)  → error         : stocke une analyse dans .cache/ (JSON)
+  - Clear()          → error         : vide tout le cache
+  - Évite de re-analyser deux fois le même diff (clé = hash SHA du contenu)
+  - STATUT : stub
+
+internal/config/config.go
+  - Struct Config avec 4 sous-structs :
+      LLMConfig      : provider (claude/gpt/ollama), model, max_tokens, temperature
+      CacheConfig    : enabled, dir, TTL
+      AnalysisConfig : local_checks, ai_enabled, threshold
+      OutputConfig   : format (json/markdown/cli)
+  - LoadConfig() lit les variables d'env et .code-review-agent.yml
+  - STATUT : stub (retourne &Config{})
+
+----------------------------------------------------------------
+TESTS
+----------------------------------------------------------------
+
+internal/parser/diff_test.go
+  - TestParseDiff() — placeholder, aucun cas implémenté
+
+internal/analyzer/analyzer_test.go
+  - TestLocalAnalyze() — placeholder
+  - TestLLMAnalyze()   — placeholder
+
+tests/integration_test.go
+  - TestIntegration()  — placeholder (test end-to-end à implémenter)
+
+tests/fixtures/security_issue.diff
+  - Diff sur auth.go : mot de passe hardcodé + SQL injection non paramétrée
+  - Résultat attendu : Issues de sévérité CRITICAL
+
+tests/fixtures/performance.diff
+  - Diff sur service.go : triple boucle imbriquée O(n³)
+  - Résultat attendu : Issue MAJOR performance
+
+tests/fixtures/clean.diff
+  - Diff sur helper.go : simple ajout d'un commentaire
+  - Résultat attendu : 0 issue
+
+----------------------------------------------------------------
+INFRASTRUCTURE
+----------------------------------------------------------------
+
+Dockerfile
+  - Stage 1 (builder) : golang:1.21-alpine → compile le binaire avec "go build ./cmd"
+  - Stage 2 (runtime) : alpine:latest      → copie seulement le binaire (~50 MB final)
+  - ENTRYPOINT : ./code-review-agent
+
+docker-compose.yml
+  - Service ollama         : image ollama/ollama, port 11434, volume ollama_data
+  - Service code-review-agent : build local, dépend de ollama, LLM_PROVIDER=ollama
+
+Makefile
+  - make build        → scripts/build.sh      (go build -o code-review-agent ./cmd)
+  - make test         → scripts/test.sh       (go test ./...)
+  - make run          → build + ./code-review-agent
+  - make docker-build → scripts/docker_build.sh
+  - make clean        → supprime le binaire et .cache/
+
+scripts/build.sh        → go build -o code-review-agent ./cmd
+scripts/test.sh         → go test ./...
+scripts/docker_build.sh → docker build -t code-review-agent:latest .
+
+----------------------------------------------------------------
+CI / QUALITÉ DE CODE
+----------------------------------------------------------------
+
+sonar-project.properties
+  - projectKey   : hicham2dot_code-review-agent
+  - organization : hicham2dot
+  - sources      : . (tout le projet Go)
+  - exclusions   : *_test.go, vendor/, examples/, scripts/
+  - coverage     : coverage.out (généré par go test -coverprofile)
+
+.github/workflows/sonar.yml
+  - Déclenché sur push/PR vers main
+  - Étapes : checkout → setup-go 1.21 → go test -coverprofile → SonarCloud Scan
+  - Secrets requis : SONAR_TOKEN (dans GitHub Settings → Secrets → Actions)
+  - STATUT : vert, Grade A, 166 LOC analysées
+
+----------------------------------------------------------------
+EXEMPLES
+----------------------------------------------------------------
+
+examples/sample.diff
+  - Exemple de diff réel à passer en entrée à la commande analyze
+
+examples/usage.sh
+  - Exemples de commandes CLI : analyze, batch, cache-clear
+
+----------------------------------------------------------------
+ÉTAT ACTUEL ET PROCHAINE ÉTAPE
+----------------------------------------------------------------
+
+  FAIT :
+    ✓ Structure complète du projet (27 fichiers)
+    ✓ Modèles de données définis (types.go)
+    ✓ Dépôt GitHub : https://github.com/Hicham2dot/code-review-agent
+    ✓ CI SonarCloud active et verte
+
+  À IMPLÉMENTER (stubs → code réel) :
+    → Semaine 1 : internal/parser/diff.go  (ParseDiff → []DiffHunk)
+    → Semaine 2 : internal/analyzer/local.go (patterns SQL injection, secrets…)
+    → Semaine 3 : internal/analyzer/llm.go  (appel Claude/GPT/Ollama)
+    → Semaine 4 : internal/formatter/*.go   (JSON, Markdown, CLI)
+    → Semaine 5 : internal/cache/filedb.go  (lecture/écriture JSON)
+    → Semaine 6 : cmd/main.go               (orchestration complète)
+
+================================================================
