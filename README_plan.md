@@ -949,4 +949,4 @@ type Summary struct {
 
 ---
 
-**C'est parti ? Questions sur le plan ? 🚀**
+
