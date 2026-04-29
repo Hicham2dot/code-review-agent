@@ -1,1 +1,46 @@
-test branch
+Exercices Faciles (du plus simple au plus complexe)
+Exercice 1: Détecteur de lignes longues
+Objectif: Créer une fonction qui compte les lignes d'un fichier Go et identifie celles > 50 caractères.
+
+
+// internal/analyzer/detectors.go
+func FindLongLines(content string, threshold int) []int {
+    // Retourne les numéros de lignes dépassant le seuil
+}
+Indice: Split par \n, itère et mesure la longueur.
+
+Exercice 2: Détecteur de patterns simples (hardcoded secrets)
+Objectif: Détecter les patterns suspects comme password = "...", api_key = "...", etc.
+
+
+func FindHardcodedSecrets(content string) []string {
+    // Retourne les lignes suspectes contenant des patterns de secrets
+}
+Indice: Utilise regexp pour matcher password|api_key|secret|token suivi de = et une chaîne entre guillemets.
+
+Exercice 3: Compteur de fonctions
+Objectif: Parser un fichier Go et compter le nombre de fonctions définies.
+
+
+func CountFunctions(content string) int {
+    // Compte les lignes commençant par "func "
+}
+Indice: Recherche les lignes contenant ^func  (au début après les espaces).
+
+Exercice 4: Détecteur de gestion d'erreurs manquante
+Objectif: Trouver les patterns courants de gestion d'erreurs oubliée.
+
+
+func FindMissingErrorHandling(content string) []string {
+    // Détecte les patterns comme: _, err := func() sans vérifier err
+}
+Indice: Cherche les patterns _, err := ou err = non suivis d'une vérification if err != nil.
+
+Exercice 5: Détecteur de patterns SQL basiques
+Objectif: Trouver les requêtes SQL potentiellement vulnérables (sans préparation).
+
+
+func FindSQLInjectionRisks(content string) []string {
+    // Détecte "SELECT ... WHERE" combiné avec concaténation de chaînes
+}
+Indice: Cherche les patterns contenant SELECT, WHERE, FROM avec concaténation + ou fmt.Sprintf
