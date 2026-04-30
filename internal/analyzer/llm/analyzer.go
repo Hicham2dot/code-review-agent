@@ -1,4 +1,4 @@
-package analyzer
+package llm
 
 // LLMAnalyze sends code to LLM for analysis
 func LLMAnalyze(code string, provider string) []interface{} {
