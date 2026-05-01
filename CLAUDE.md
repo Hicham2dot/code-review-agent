@@ -30,9 +30,13 @@ Outil CLI et API qui analyse automatiquement les modifications de code (diffs) v
    - Skip comments, defer, blanks (`_ =`)
 
 ### Analyse LLM
-- **Stub actuel** : fonction `LLMAnalyze()` vide
-- Envisagé : intégration Anthropic SDK (claude-opus-4-20250514)
-- Usage: Analyse contextuelle, patterns complexes, code quality subjectif
+- **Status** : ✅ Implémenté (Mistral AI)
+- **Fonction** : `LLMAnalyze(hunks []models.DiffHunk, cfg config.LLMConfig) ([]models.Issue, error)`
+- **API** : HTTP POST vers `https://api.mistral.ai/v1/chat/completions`
+- **Auth** : `MISTRAL_API_KEY` env var (Bearer token)
+- **Modèle défaut** : `mistral-tiny` (configurable via `cfg.Model`)
+- **Usage** : Analyse contextuelle, patterns complexes, code quality subjectif
+- **Setup** : https://console.mistral.ai/ → créer clé gratuite
 
 ### Structure de Sortie
 ```go
@@ -89,7 +93,9 @@ internal/analyzer/
 │       ├── deprecated_function.go  # checkDeprecatedFunction()
 │       └── missing_error_handling.go # checkMissingErrorHandling()
 └── llm/                            # Package "llm"
-    └── analyzer.go                 # LLMAnalyze() stub (à implémenter)
+    ├── analyzer.go                 # LLMAnalyze(hunks, cfg) → ([]Issue, error) + tests
+    ├── prompt.go                   # BuildPrompt(hunks) + ParseLLMResponse(raw)
+    └── analyzer_test.go            # 4 tests (tous passent ✓)
 ```
 
 ### Fichiers Clés Externes
@@ -101,6 +107,23 @@ internal/analyzer/
 | `internal/config/config.go` | Config structs + LoadConfig() (TODO) |
 | `internal/formatter/` | JSON/Markdown/CLI output formatters |
 | `internal/cache/filedb.go` | File-based cache manager |
+
+### Fichiers LLM Implémentés
+
+**`internal/analyzer/llm/analyzer.go`**
+- `LLMAnalyze(hunks []models.DiffHunk, cfg config.LLMConfig) ([]models.Issue, error)`
+- Effectue requête HTTP POST à `https://api.mistral.ai/v1/chat/completions`
+- Lit API key depuis variable d'environnement `MISTRAL_API_KEY`
+- Headers : `Content-Type: application/json`, `Authorization: Bearer {key}`
+- Messages : system prompt + user content (format OpenAI-compatible)
+- Retourne `[]models.Issue` avec `Source="llm_analyzer"`
+- Gère les erreurs (API call, parsing) avec messages descriptifs
+
+**`internal/analyzer/llm/prompt.go`**
+- `BuildPrompt(hunks []models.DiffHunk) string` — Formate hunks en diff lisible (fichier, numéros lignes, contenu)
+- `ParseLLMResponse(raw string) []models.Issue` — Parse JSON retourné par API Claude en `[]models.Issue`
+  - Champs attendus : `type`, `severity`, `file`, `start_line`, `message`, `suggestion`, `confidence`
+  - Gère gracieusement JSON invalide ou tableau vide (retourne `[]Issue{}`
 
 ## 5. Flux de Données
 
@@ -114,7 +137,11 @@ LocalAnalyze(hunks) :
   ├─ Concurrent: Rule2.Check(hunks) → [Issue3]
   └─ Concurrent: Rule6.Check(hunks) → [Issue4, Issue5]
     ↓
-Aggregation → []Issue (merged from all goroutines)
+Aggregation → []Issue (local issues)
+    ↓
+[OPTIONAL] LLMAnalyze(hunks, cfg) → []Issue (si cfg.AIEnabled)
+    ↓
+Merge Local + LLM → []Issue (all issues)
     ↓
 AnalysisResult {Issues[], Summary{Counts, Quality, Confidence}}
     ↓
@@ -130,19 +157,18 @@ Formatter (JSON/Markdown/CLI) → Output
 - **Models** : Issue, Location, AnalysisResult structures
 - **Patterns de sécurité** : Secrets, SQL injection détectés
 - **Concurrence** : LocalAnalyze orchestre les règles via goroutines
+- **LLM Analyzer** : `llm/analyzer.go` + `llm/prompt.go` implémentés avec appels HTTP à Mistral AI (4 tests passent)
 
 ### 🔄 En Cours / Stubs
 - **Main CLI** : `cmd/main.go` affiche usage seulement
 - **Config loading** : `LoadConfig()` retourne vide (TODO)
-- **LLM Analyzer** : `llm/analyzer.go` retourne `[]interface{}{}`
 - **Formatters** : JSON/Markdown/CLI existent mais pas intégrés
 
 ### 📋 À Faire
 1. **CLI Integration** : Implémenter cobra commands (analyze, batch, cache-clear)
-2. **LLM Integration** : Appels API Claude via anthropic-sdk-go
-3. **Config Loading** : Lire `.code-review-agent.yml` + env vars
-4. **Testing** : Intégration tests (tests/integration_test.go)
-5. **Docker** : Valider build et image
+2. **Config Loading** : Lire `.code-review-agent.yml` + env vars
+3. **Testing** : Intégration tests (tests/integration_test.go)
+4. **Docker** : Valider build et image
 
 ## 7. Commandes Utiles
 

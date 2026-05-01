@@ -1,0 +1,27 @@
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Build outputs
+code-review-agent
+bin/
+dist/
+
+# Dependencies
+vendor/
+go.sum
+
+# Logs
+*.log
+
+# Cache
+.cache/
+.code-review-agent-cache/
