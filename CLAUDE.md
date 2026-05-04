@@ -104,9 +104,9 @@ internal/analyzer/
 | `cmd/main.go` | Entry point CLI (v0.1, stub) |
 | `internal/models/types.go` | DiffHunk, Issue, Location, Summary structs |
 | `internal/parser/diff.go` | ParseDiff(string) → []DiffHunk |
-| `internal/config/config.go` | Config structs + LoadConfig() (TODO) |
-| `internal/formatter/` | JSON/Markdown/CLI output formatters |
-| `internal/cache/filedb.go` | File-based cache manager |
+| `internal/config/config.go` | Config structs + LoadConfig() ✅ Implémenté |
+| `internal/formatter/` | JSON/Markdown/CLI output formatters ✅ Implémentés |
+| `internal/cache/filedb.go` | File-based cache manager ✅ Implémenté |
 
 ### Fichiers LLM Implémentés
 
@@ -158,17 +158,18 @@ Formatter (JSON/Markdown/CLI) → Output
 - **Patterns de sécurité** : Secrets, SQL injection détectés
 - **Concurrence** : LocalAnalyze orchestre les règles via goroutines
 - **LLM Analyzer** : `llm/analyzer.go` + `llm/prompt.go` implémentés avec appels HTTP à Mistral AI (4 tests passent)
+- **Result Aggregator** : `internal/aggregator/aggregator.go` implémenté (merge, deduplicate, sort, summary) (13 tests passent)
+- **Config Loading** : `LoadConfig()` implémenté avec support YAML + env vars (hiérarchie: CLI → env → YAML → defaults)
+- **Output Formatters** : JSON, CLI (avec ANSI colors), Markdown implémentés (3 tests passent)
+- **Cache Layer** : File-based cache avec TTL support implémenté (5 tests passent)
 
 ### 🔄 En Cours / Stubs
 - **Main CLI** : `cmd/main.go` affiche usage seulement
-- **Config loading** : `LoadConfig()` retourne vide (TODO)
-- **Formatters** : JSON/Markdown/CLI existent mais pas intégrés
 
 ### 📋 À Faire
 1. **CLI Integration** : Implémenter cobra commands (analyze, batch, cache-clear)
-2. **Config Loading** : Lire `.code-review-agent.yml` + env vars
-3. **Testing** : Intégration tests (tests/integration_test.go)
-4. **Docker** : Valider build et image
+2. **Testing** : Intégration tests (tests/integration_test.go)
+3. **Docker** : Valider build et image
 
 ## 7. Commandes Utiles
 

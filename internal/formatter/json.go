@@ -1,7 +1,14 @@
 package formatter
 
-// FormatJSON formats results as JSON
-func FormatJSON(results interface{}) string {
-	// TODO: Implement JSON formatting
-	return ""
+import (
+	"code-review-agent/internal/models"
+	"encoding/json"
+)
+
+func FormatJSON(result *models.AnalysisResult) string {
+	data, err := json.MarshalIndent(result, "", "  ")
+	if err != nil {
+		return ""
+	}
+	return string(data)
 }
