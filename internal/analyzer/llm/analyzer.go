@@ -8,12 +8,13 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 )
 
 const (
-	mistralAPIBase = "https://api.mistral.ai/v1/chat/completions"
-	systemPrompt   = `Tu es un expert en code review et en sécurité. Analyse le diff fourni et retourne UNIQUEMENT un tableau JSON valide.
+	geminiAPIBase = "https://generativelanguage.googleapis.com/v1/models/%s:generateContent"
+	systemPrompt  = `Tu es un expert en code review et en sécurité. Analyse le diff fourni et retourne UNIQUEMENT un tableau JSON valide.
 Chaque problème détecté doit avoir la structure suivante :
 [{"type":"...","severity":"critical|major|minor","file":"...","start_line":N,"message":"...","suggestion":"...","confidence":0.0-1.0}]
 Détecte TOUS les problèmes :
@@ -25,44 +26,40 @@ Si aucun problème, retourne [].
 Réponds UNIQUEMENT avec le JSON, aucun texte avant ou après.`
 )
 
-type messageRequest struct {
-	Model     string        `json:"model"`
-	MaxTokens int           `json:"max_tokens"`
-	Messages  []messageItem `json:"messages"`
+type geminiRequest struct {
+	Contents []struct {
+		Role  string `json:"role"`
+		Parts []struct {
+			Text string `json:"text"`
+		} `json:"parts"`
+	} `json:"contents"`
+	GenerationConfig struct {
+		MaxOutputTokens int `json:"maxOutputTokens"`
+	} `json:"generationConfig"`
 }
 
-type messageItem struct {
-	Role    string `json:"role"`
-	Content string `json:"content"`
-}
-
-type mistralChoice struct {
-	Message struct {
-		Role    string `json:"role"`
-		Content string `json:"content"`
-	} `json:"message"`
-}
-
-type messageResponse struct {
-	Choices []mistralChoice `json:"choices"`
-	Error   *struct {
+type geminiResponse struct {
+	Candidates []struct {
+		Content struct {
+			Parts []struct {
+				Text string `json:"text"`
+			} `json:"parts"`
+		} `json:"content"`
+	} `json:"candidates"`
+	Error *struct {
 		Message string `json:"message"`
 	} `json:"error"`
 }
 
-type hfResponse []struct {
-	GeneratedText string `json:"generated_text"`
-}
-
 func LLMAnalyze(hunks []models.DiffHunk, cfg config.LLMConfig) ([]models.Issue, error) {
-	apiKey := os.Getenv("MISTRAL_API_KEY")
+	apiKey := os.Getenv("GEMINI_API_KEY")
 	if apiKey == "" {
-		return []models.Issue{}, fmt.Errorf("MISTRAL_API_KEY not set")
+		return []models.Issue{}, fmt.Errorf("GEMINI_API_KEY not set")
 	}
 
 	model := cfg.Model
 	if model == "" {
-		model = "mistral-medium"
+		model = "gemini-2.0-flash"
 	}
 	maxTokens := cfg.MaxTokens
 	if maxTokens == 0 {
@@ -70,28 +67,38 @@ func LLMAnalyze(hunks []models.DiffHunk, cfg config.LLMConfig) ([]models.Issue, 
 	}
 
 	prompt := BuildPrompt(hunks)
+	fullPrompt := systemPrompt + "\n\n" + prompt
 
-	reqBody := messageRequest{
-		Model:     model,
-		MaxTokens: maxTokens,
-		Messages: []messageItem{
-			{Role: "system", Content: systemPrompt},
-			{Role: "user", Content: prompt},
+	reqBody := geminiRequest{}
+	reqBody.Contents = []struct {
+		Role  string `json:"role"`
+		Parts []struct {
+			Text string `json:"text"`
+		} `json:"parts"`
+	}{
+		{
+			Role: "user",
+			Parts: []struct {
+				Text string `json:"text"`
+			}{
+				{Text: fullPrompt},
+			},
 		},
 	}
+	reqBody.GenerationConfig.MaxOutputTokens = maxTokens
 
 	body, err := json.Marshal(reqBody)
 	if err != nil {
 		return nil, fmt.Errorf("marshal request: %w", err)
 	}
 
-	req, err := http.NewRequest("POST", mistralAPIBase, bytes.NewReader(body))
+	apiURL := fmt.Sprintf(geminiAPIBase, url.QueryEscape(model))
+	req, err := http.NewRequest("POST", apiURL+"?key="+apiKey, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
 
 	req.Header.Set("Content-Type", "application/json")
-	req.Header.Set("Authorization", "Bearer "+apiKey)
 
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -105,7 +112,7 @@ func LLMAnalyze(hunks []models.DiffHunk, cfg config.LLMConfig) ([]models.Issue, 
 		return nil, fmt.Errorf("read response: %w", err)
 	}
 
-	var apiResp messageResponse
+	var apiResp geminiResponse
 	if err := json.Unmarshal(respBody, &apiResp); err != nil {
 		truncated := string(respBody)
 		if len(truncated) > 200 {
@@ -118,11 +125,11 @@ func LLMAnalyze(hunks []models.DiffHunk, cfg config.LLMConfig) ([]models.Issue, 
 		return nil, fmt.Errorf("API error: %s", apiResp.Error.Message)
 	}
 
-	if len(apiResp.Choices) == 0 {
+	if len(apiResp.Candidates) == 0 {
 		return []models.Issue{}, nil
 	}
 
-	text := apiResp.Choices[0].Message.Content
+	text := apiResp.Candidates[0].Content.Parts[0].Text
 	issues := ParseLLMResponse(text)
 
 	return issues, nil

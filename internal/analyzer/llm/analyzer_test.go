@@ -72,10 +72,10 @@ func TestParseLLMResponseInvalidJSON(t *testing.T) {
 }
 
 func TestLLMAnalyze(t *testing.T) {
-	// Skip if MISTRAL_API_KEY not set (for CI environments)
-	apiKey := os.Getenv("MISTRAL_API_KEY")
+	// Skip if GEMINI_API_KEY not set (for CI environments)
+	apiKey := os.Getenv("GEMINI_API_KEY")
 	if apiKey == "" {
-		t.Skip("MISTRAL_API_KEY not set, skipping integration test")
+		t.Skip("GEMINI_API_KEY not set, skipping integration test")
 	}
 
 	hunks := []models.DiffHunk{
@@ -87,7 +87,7 @@ func TestLLMAnalyze(t *testing.T) {
 	}
 
 	cfg := config.LLMConfig{
-		Model:     "mistral-medium",
+		Model:     "gemini-2.0-flash",
 		MaxTokens: 512,
 	}
 
@@ -114,10 +114,10 @@ func TestLLMAnalyze(t *testing.T) {
 }
 
 func TestLLMAnalyzeMalicious(t *testing.T) {
-	// Skip if MISTRAL_API_KEY not set (for CI environments)
-	apiKey := os.Getenv("MISTRAL_API_KEY")
+	// Skip if GEMINI_API_KEY not set (for CI environments)
+	apiKey := os.Getenv("GEMINI_API_KEY")
 	if apiKey == "" {
-		t.Skip("MISTRAL_API_KEY not set, skipping integration test")
+		t.Skip("GEMINI_API_KEY not set, skipping integration test")
 	}
 
 	hunks := []models.DiffHunk{
@@ -142,7 +142,7 @@ func TestLLMAnalyzeMalicious(t *testing.T) {
 	}
 
 	cfg := config.LLMConfig{
-		Model:     "mistral-medium",
+		Model:     "gemini-2.0-flash",
 		MaxTokens: 1024,
 	}
 
