@@ -93,7 +93,11 @@ func LLMAnalyze(hunks []models.DiffHunk, cfg config.LLMConfig) ([]models.Issue, 
 	}
 
 	apiURL := fmt.Sprintf(geminiAPIBase, url.QueryEscape(model))
-	req, err := http.NewRequest("POST", apiURL+"?key="+apiKey, bytes.NewReader(body))
+	params := url.Values{}
+	params.Set("key", apiKey)
+	fullURL := apiURL + "?" + params.Encode()
+
+	req, err := http.NewRequest("POST", fullURL, bytes.NewReader(body))
 	if err != nil {
 		return nil, fmt.Errorf("create request: %w", err)
 	}
@@ -126,6 +130,10 @@ func LLMAnalyze(hunks []models.DiffHunk, cfg config.LLMConfig) ([]models.Issue, 
 	}
 
 	if len(apiResp.Candidates) == 0 {
+		return []models.Issue{}, nil
+	}
+
+	if len(apiResp.Candidates[0].Content.Parts) == 0 {
 		return []models.Issue{}, nil
 	}
 

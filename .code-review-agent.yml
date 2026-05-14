@@ -1,0 +1,19 @@
+# Code Review Agent Configuration
+llm:
+  provider: mistral
+  model: mistral-tiny
+  max_tokens: 1024
+  temperature: 0.7
+
+cache:
+  enabled: true
+  dir: ~/.cache/code-review-agent
+  ttl: 604800  # 7 days
+
+analysis:
+  local_checks: true
+  ai_enabled: false
+  threshold: 0.5
+
+output:
+  format: cli

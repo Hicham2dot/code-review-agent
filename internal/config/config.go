@@ -2,20 +2,19 @@ package config
 
 import (
 	"os"
-	"os/user"
 	"path/filepath"
 	"strconv"
-	"strings"
 
 	"gopkg.in/yaml.v2"
 )
 
 // Config holds the application configuration
+
 type Config struct {
-	LLM      LLMConfig     `yaml:"llm"`
-	Cache    CacheConfig   `yaml:"cache"`
+	LLM      LLMConfig      `yaml:"llm"`
+	Cache    CacheConfig    `yaml:"cache"`
 	Analysis AnalysisConfig `yaml:"analysis"`
-	Output   OutputConfig  `yaml:"output"`
+	Output   OutputConfig   `yaml:"output"`
 }
 
 type LLMConfig struct {
@@ -84,70 +83,61 @@ func LoadConfig() *Config {
 	return cfg
 }
 
-func overlayEnv(cfg *Config) {
-	// LLM config
-	if val := os.Getenv("CODE_REVIEW_LLM_PROVIDER"); val != "" {
-		cfg.LLM.Provider = val
-	}
-	if val := os.Getenv("CODE_REVIEW_LLM_MODEL"); val != "" {
-		cfg.LLM.Model = val
-	}
-	if val := os.Getenv("CODE_REVIEW_LLM_MAX_TOKENS"); val != "" {
-		if n, err := strconv.Atoi(val); err == nil {
-			cfg.LLM.MaxTokens = n
-		}
-	}
-	if val := os.Getenv("CODE_REVIEW_LLM_TEMP"); val != "" {
-		if f, err := strconv.ParseFloat(val, 64); err == nil {
-			cfg.LLM.Temp = f
-		}
-	}
-
-	// Cache config
-	if val := os.Getenv("CODE_REVIEW_CACHE_ENABLED"); val != "" {
-		cfg.Cache.Enabled = strings.ToLower(val) == "true"
-	}
-	if val := os.Getenv("CODE_REVIEW_CACHE_DIR"); val != "" {
-		cfg.Cache.Dir = val
-	}
-	if val := os.Getenv("CODE_REVIEW_CACHE_TTL"); val != "" {
-		if n, err := strconv.Atoi(val); err == nil {
-			cfg.Cache.TTL = n
-		}
-	}
-
-	// Analysis config
-	if val := os.Getenv("CODE_REVIEW_ANALYSIS_LOCAL"); val != "" {
-		cfg.Analysis.LocalChecks = strings.ToLower(val) == "true"
-	}
-	if val := os.Getenv("CODE_REVIEW_ANALYSIS_AI"); val != "" {
-		cfg.Analysis.AIEnabled = strings.ToLower(val) == "true"
-	}
-	if val := os.Getenv("CODE_REVIEW_ANALYSIS_THRESHOLD"); val != "" {
-		if f, err := strconv.ParseFloat(val, 64); err == nil {
-			cfg.Analysis.Threshold = f
-		}
-	}
-
-	// Output config
-	if val := os.Getenv("CODE_REVIEW_OUTPUT_FORMAT"); val != "" {
-		cfg.Output.Format = val
-	}
-}
-
-func defaultCacheDir() string {
-	if h := homeDir(); h != "" {
-		return filepath.Join(h, ".cache", "code-review-agent")
-	}
-	return "/tmp/code-review-agent"
-}
-
 func homeDir() string {
 	if h := os.Getenv("HOME"); h != "" {
 		return h
 	}
-	if u, err := user.Current(); err == nil {
-		return u.HomeDir
-	}
 	return ""
+}
+
+func defaultCacheDir() string {
+	h := homeDir()
+	if h != "" {
+		return filepath.Join(h, ".cache", "code-review-agent")
+	}
+	return filepath.Join(os.TempDir(), "code-review-agent-cache")
+}
+
+func overlayEnv(cfg *Config) {
+	if v := os.Getenv("REVIEW_LLM_PROVIDER"); v != "" {
+		cfg.LLM.Provider = v
+	}
+	if v := os.Getenv("REVIEW_LLM_MODEL"); v != "" {
+		cfg.LLM.Model = v
+	}
+	if v := os.Getenv("REVIEW_LLM_MAX_TOKENS"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.LLM.MaxTokens = n
+		}
+	}
+	if v := os.Getenv("REVIEW_LLM_TEMP"); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			cfg.LLM.Temp = f
+		}
+	}
+	if v := os.Getenv("REVIEW_CACHE_ENABLED"); v != "" {
+		cfg.Cache.Enabled = v == "true"
+	}
+	if v := os.Getenv("REVIEW_CACHE_DIR"); v != "" {
+		cfg.Cache.Dir = v
+	}
+	if v := os.Getenv("REVIEW_CACHE_TTL"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.Cache.TTL = n
+		}
+	}
+	if v := os.Getenv("REVIEW_ANALYSIS_LOCAL_CHECKS"); v != "" {
+		cfg.Analysis.LocalChecks = v == "true"
+	}
+	if v := os.Getenv("REVIEW_ANALYSIS_AI_ENABLED"); v != "" {
+		cfg.Analysis.AIEnabled = v == "true"
+	}
+	if v := os.Getenv("REVIEW_ANALYSIS_THRESHOLD"); v != "" {
+		if f, err := strconv.ParseFloat(v, 64); err == nil {
+			cfg.Analysis.Threshold = f
+		}
+	}
+	if v := os.Getenv("REVIEW_OUTPUT_FORMAT"); v != "" {
+		cfg.Output.Format = v
+	}
 }
