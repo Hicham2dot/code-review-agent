@@ -17,6 +17,9 @@ type CacheEntry struct {
 
 func Get(hash string, ttlSeconds int) *models.AnalysisResult {
 	cacheDir := cacheDirectory()
+	if cacheDir == "" {
+		return nil
+	}
 	filePath := filepath.Join(cacheDir, hash+".json")
 
 	data, err := os.ReadFile(filePath)
@@ -43,8 +46,8 @@ func Get(hash string, ttlSeconds int) *models.AnalysisResult {
 
 func Set(hash string, result *models.AnalysisResult, ttlSeconds int) error {
 	cacheDir := cacheDirectory()
-	if err := os.MkdirAll(cacheDir, 0755); err != nil {
-		return fmt.Errorf("failed to create cache directory: %w", err)
+	if cacheDir == "" {
+		return fmt.Errorf("cache directory not available")
 	}
 
 	entry := CacheEntry{
@@ -68,6 +71,9 @@ func Set(hash string, result *models.AnalysisResult, ttlSeconds int) error {
 
 func Clear() error {
 	cacheDir := cacheDirectory()
+	if cacheDir == "" {
+		return fmt.Errorf("cache directory not available")
+	}
 	if err := os.RemoveAll(cacheDir); err != nil {
 		return fmt.Errorf("failed to clear cache: %w", err)
 	}
@@ -76,7 +82,10 @@ func Clear() error {
 
 func cacheDirectory() string {
 	if h := os.Getenv("HOME"); h != "" {
-		return filepath.Join(h, ".cache", "code-review-agent")
+		cacheDir := filepath.Join(h, ".cache", "code-review-agent")
+		if err := os.MkdirAll(cacheDir, 0700); err == nil {
+			return cacheDir
+		}
 	}
-	return filepath.Join(os.TempDir(), "code-review-agent-cache")
+	return ""
 }

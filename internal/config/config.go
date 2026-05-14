@@ -95,7 +95,7 @@ func defaultCacheDir() string {
 	if h != "" {
 		return filepath.Join(h, ".cache", "code-review-agent")
 	}
-	return filepath.Join(os.TempDir(), "code-review-agent-cache")
+	return ""
 }
 
 func overlayEnv(cfg *Config) {
