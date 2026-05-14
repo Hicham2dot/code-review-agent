@@ -1,7 +1,7 @@
 package main
 
 import (
-	"crypto/md5"
+	"crypto/sha256"
 	"fmt"
 	"io"
 	"os"
@@ -50,6 +50,14 @@ func main() {
 	}
 }
 
+func isSecurePath(path string) bool {
+	abs, err := filepath.Abs(path)
+	if err != nil {
+		return false
+	}
+	return abs == filepath.Clean(abs)
+}
+
 // ============================================================================
 // ANALYZE COMMAND
 // ============================================================================
@@ -79,6 +87,9 @@ func runAnalyze(cmd *cobra.Command, args []string) error {
 	// 1. Lire le diff
 	var diffContent string
 	if analyzeFile != "" {
+		if !isSecurePath(analyzeFile) {
+			return fmt.Errorf("invalid file path: %s", analyzeFile)
+		}
 		data, err := os.ReadFile(analyzeFile)
 		if err != nil {
 			return fmt.Errorf("erreur lecture fichier: %w", err)
@@ -129,7 +140,7 @@ func runAnalyze(cmd *cobra.Command, args []string) error {
 	}
 
 	// 5. Calcul du hash du diff
-	h := md5.Sum([]byte(diffContent))
+	h := sha256.Sum256([]byte(diffContent))
 	diffHash := fmt.Sprintf("%x", h)
 
 	// 6. Agrégation
@@ -155,7 +166,7 @@ func runAnalyze(cmd *cobra.Command, args []string) error {
 
 	// 8. Afficher ou sauvegarder
 	if analyzeOutput != "" {
-		if err := os.WriteFile(analyzeOutput, []byte(output), 0644); err != nil {
+		if err := os.WriteFile(analyzeOutput, []byte(output), 0600); err != nil {
 			return fmt.Errorf("erreur écriture fichier: %w", err)
 		}
 
@@ -191,7 +202,15 @@ func init() {
 }
 
 func runBatch(cmd *cobra.Command, args []string) error {
-	// 1. Globber les fichiers .diff
+	// 1. Valider le répertoire
+	if !isSecurePath(batchDir) {
+		return fmt.Errorf("invalid directory path: %s", batchDir)
+	}
+	if _, err := os.Stat(batchDir); err != nil {
+		return fmt.Errorf("répertoire inaccessible: %w", err)
+	}
+
+	// 2. Globber les fichiers .diff
 	pattern := filepath.Join(batchDir, "*.diff")
 	files, err := filepath.Glob(pattern)
 	if err != nil {
@@ -202,7 +221,7 @@ func runBatch(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(os.Stderr, "Trouvé %d fichiers .diff\n", len(files))
 	}
 
-	// 2. Traiter chaque fichier
+	// 3. Traiter chaque fichier
 	var batchResults []models.AnalysisResult
 	for _, filePath := range files {
 		if verbose {
@@ -229,12 +248,15 @@ func runBatch(cmd *cobra.Command, args []string) error {
 		// Analyse LLM (optionnelle)
 		var llmIssues []models.Issue
 		if cfg.Analysis.AIEnabled {
-			llmIssues, _ = llm.LLMAnalyze(hunks, cfg.LLM)
+			llmIssues, err = llm.LLMAnalyze(hunks, cfg.LLM)
+			if err != nil && verbose {
+				fmt.Fprintf(os.Stderr, "Avertissement: analyse LLM échouée pour %s: %v\n", filePath, err)
+			}
 		}
 
 		// Agrégation
 		result := aggregator.Aggregate(localIssues, llmIssues, hunks, diffContent)
-		h := md5.Sum([]byte(diffContent))
+		h := sha256.Sum256([]byte(diffContent))
 		result.DiffHash = fmt.Sprintf("%x", h)
 		batchResults = append(batchResults, result)
 	}
@@ -243,7 +265,7 @@ func runBatch(cmd *cobra.Command, args []string) error {
 		fmt.Fprintf(os.Stderr, "Traitement batch complété (%d fichiers)\n", len(batchResults))
 	}
 
-	// 3. Formatter et afficher résultats
+	// 4. Formatter et afficher résultats
 	output := "# Résultats Batch Analysis\n\n"
 	for i, result := range batchResults {
 		output += fmt.Sprintf("## Fichier %d (Hash: %s)\n", i+1, result.DiffHash)
@@ -251,9 +273,9 @@ func runBatch(cmd *cobra.Command, args []string) error {
 		output += "\n---\n\n"
 	}
 
-	// 4. Afficher ou sauvegarder
+	// 5. Afficher ou sauvegarder
 	if batchOutput != "" {
-		if err := os.WriteFile(batchOutput, []byte(output), 0644); err != nil {
+		if err := os.WriteFile(batchOutput, []byte(output), 0600); err != nil {
 			return fmt.Errorf("erreur écriture fichier: %w", err)
 		}
 
@@ -343,7 +365,7 @@ output:
   format: cli
 `
 
-	if err := os.WriteFile(cfgPath, []byte(content), 0644); err != nil {
+	if err := os.WriteFile(cfgPath, []byte(content), 0600); err != nil {
 		return fmt.Errorf("erreur sauvegarde config: %w", err)
 	}
 
