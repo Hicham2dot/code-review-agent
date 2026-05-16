@@ -1,0 +1,17 @@
+.git
+.github
+.gitignore
+.env
+.env.local
+.DS_Store
+*.md
+!README.md
+test_*.diff
+test_diffs/
+results/
+.cache
+code-review-agent
+*.log
+Dockerfile
+docker-compose.yml
+.dockerignore

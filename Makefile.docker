@@ -1,0 +1,55 @@
+.PHONY: docker-build docker-test docker-run docker-push docker-clean docker-compose-up docker-compose-down
+
+IMAGE_NAME ?= code-review-agent
+IMAGE_TAG ?= latest
+REGISTRY ?= localhost
+
+# Build Docker image
+docker-build:
+	docker build -t $(IMAGE_NAME):$(IMAGE_TAG) .
+	@echo "✅ Image built: $(IMAGE_NAME):$(IMAGE_TAG)"
+
+# Run tests
+docker-test:
+	./scripts/docker-test.sh
+
+# Run container interactively
+docker-run:
+	docker run --rm -it \
+		-e NVIDIA_API_KEY=$(NVIDIA_API_KEY) \
+		-v $$(pwd)/diffs:/app/diffs \
+		-v $$(pwd)/results:/app/results \
+		$(IMAGE_NAME):$(IMAGE_TAG) bash
+
+# Analyze single file
+docker-analyze:
+	docker run --rm \
+		-e NVIDIA_API_KEY=$(NVIDIA_API_KEY) \
+		-v $$(pwd)/test_vuln.diff:/tmp/test.diff \
+		$(IMAGE_NAME):$(IMAGE_TAG) \
+		analyze --file=/tmp/test.diff --format=cli --verbose
+
+# Tag for registry
+docker-tag:
+	docker tag $(IMAGE_NAME):$(IMAGE_TAG) $(REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG)
+
+# Push to registry
+docker-push: docker-tag
+	docker push $(REGISTRY)/$(IMAGE_NAME):$(IMAGE_TAG)
+
+# Docker Compose up
+docker-compose-up:
+	docker-compose up -d
+
+# Docker Compose down
+docker-compose-down:
+	docker-compose down
+
+# Clean all docker images
+docker-clean:
+	docker rmi $(IMAGE_NAME):$(IMAGE_TAG) || true
+	@echo "✅ Cleaned"
+
+# Full pipeline
+docker-pipeline: docker-build docker-test docker-push
+	@echo "✅ Docker pipeline complete"

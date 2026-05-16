@@ -1,22 +1,11 @@
 version: '3.8'
 
 services:
-  ollama:
-    image: ollama/ollama:latest
-    ports:
-      - "11434:11434"
-    volumes:
-      - ollama_data:/root/.ollama
-    environment:
-      - OLLAMA_MODEL=llama2
-
   code-review-agent:
     build: .
-    depends_on:
-      - ollama
     environment:
-      - LLM_PROVIDER=ollama
-      - OLLAMA_HOST=http://ollama:11434
-
-volumes:
-  ollama_data:
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+    volumes:
+      - ./diffs:/app/diffs
+      - ./results:/app/results
+    working_dir: /app

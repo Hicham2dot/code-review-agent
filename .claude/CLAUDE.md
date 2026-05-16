@@ -167,13 +167,15 @@ Formatter (JSON/Markdown/CLI) → Output
 - **Integration Tests** : `tests/integration_test.go` avec 6 tests end-to-end (ParseDiff, LocalAnalyze, Formatter outputs)
 - **Security Fixes** : 7 vulnérabilités SonarQube corrigées (SHA-256, permissions 0600, path traversal, MkdirAll idempotency)
 - **LLM Provider Switch** : Migration de Mistral AI vers NVIDIA API (google/gemma-3n-e2b-it) pour meilleure détection vulnérabilités
+- **Docker** : Dockerfile multi-stage, docker-compose.yml, .dockerignore, test scripts, Makefile.docker (✅ Complet)
+- **Deployment Docs** : DOCKER.md + DEPLOYMENT.md avec guides complets, scripts de test, Kubernetes templates
+- **Environment Setup** : .env.example créé, scripts/docker-test.sh pour validation
 
 ### 🔄 En Cours / Stubs
 (Aucun)
 
 ### 📋 À Faire
-1. **Docker** : Valider build et image
-2. **Documentation** : Mettre à jour README avec exemples de CLI
+1. **Documentation** : Mettre à jour README avec exemples de CLI + Docker
 
 ## 7. Commandes de Test Complètes
 
