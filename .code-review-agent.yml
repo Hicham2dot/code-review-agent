@@ -1,7 +1,7 @@
 # Code Review Agent Configuration
 llm:
-  provider: mistral
-  model: mistral-tiny
+  provider: nvidia
+  model: google/gemma-3n-e2b-it
   max_tokens: 1024
   temperature: 0.7
 
@@ -12,7 +12,7 @@ cache:
 
 analysis:
   local_checks: true
-  ai_enabled: false
+  ai_enabled: true
   threshold: 0.5
 
 output:

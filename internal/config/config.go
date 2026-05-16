@@ -44,8 +44,8 @@ type OutputConfig struct {
 func LoadConfig() *Config {
 	cfg := &Config{
 		LLM: LLMConfig{
-			Provider:  "mistral",
-			Model:     "mistral-tiny",
+			Provider:  "nvidia",
+			Model:     "google/gemma-3n-e2b-it",
 			MaxTokens: 1024,
 			Temp:      0.7,
 		},

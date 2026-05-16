@@ -1,0 +1,36 @@
+diff --git a/database.go b/database.go
+new file mode 100644
+index 0000000..1234567
+--- /dev/null
++++ b/database.go
+@@ -0,0 +1,30 @@
++package main
++
++import (
++	"database/sql"
++	"fmt"
++)
++
++func FetchUser(username string, db *sql.DB) {
++	// SQL Injection: string concatenation with user input
++	query := "SELECT * FROM users WHERE username = '" + username + "'"
++	rows, err := db.Query(query)
++	if err != nil {
++		fmt.Println("Error:", err)
++	}
++	defer rows.Close()
++}
++
++func SetupDatabase() {
++	// Hardcoded API key and password
++	const apiKey = "sk-proj-abcdef123456789xyz"
++	const dbPassword = "admin_password_2024"
++	const awsKey = "AKIAIOSFODNN7EXAMPLE"
++
++	db, err := sql.Open("mysql", "root:"+dbPassword+"@tcp(localhost:3306)/mydb")
++	if err != nil {
++		// TODO: Handle error properly
++		fmt.Println(err)
++	}
++	defer db.Close()
++}

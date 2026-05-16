@@ -30,13 +30,13 @@ Outil CLI et API qui analyse automatiquement les modifications de code (diffs) v
    - Skip comments, defer, blanks (`_ =`)
 
 ### Analyse LLM
-- **Status** : ✅ Implémenté (Mistral AI)
+- **Status** : ✅ Implémenté (NVIDIA API)
 - **Fonction** : `LLMAnalyze(hunks []models.DiffHunk, cfg config.LLMConfig) ([]models.Issue, error)`
-- **API** : HTTP POST vers `https://api.mistral.ai/v1/chat/completions`
-- **Auth** : `MISTRAL_API_KEY` env var (Bearer token)
-- **Modèle défaut** : `mistral-tiny` (configurable via `cfg.Model`)
-- **Usage** : Analyse contextuelle, patterns complexes, code quality subjectif
-- **Setup** : https://console.mistral.ai/ → créer clé gratuite
+- **API** : HTTP POST vers `https://integrate.api.nvidia.com/v1/chat/completions`
+- **Auth** : `NVIDIA_API_KEY` env var (Bearer token)
+- **Modèle défaut** : `google/gemma-3n-e2b-it` (configurable via `cfg.Model`)
+- **Usage** : Analyse contextuelle, patterns complexes, détection vulnérabilités avancée
+- **Setup** : https://build.nvidia.com/google/gemma-3n-e2b-it → créer clé API
 
 ### Structure de Sortie
 ```go
@@ -112,10 +112,11 @@ internal/analyzer/
 
 **`internal/analyzer/llm/analyzer.go`**
 - `LLMAnalyze(hunks []models.DiffHunk, cfg config.LLMConfig) ([]models.Issue, error)`
-- Effectue requête HTTP POST à `https://api.mistral.ai/v1/chat/completions`
-- Lit API key depuis variable d'environnement `MISTRAL_API_KEY`
+- Effectue requête HTTP POST à `https://integrate.api.nvidia.com/v1/chat/completions`
+- Lit API key depuis variable d'environnement `NVIDIA_API_KEY`
 - Headers : `Content-Type: application/json`, `Authorization: Bearer {key}`
 - Messages : system prompt + user content (format OpenAI-compatible)
+- Modèle : `google/gemma-3n-e2b-it` (optimisé pour la détection de vulnérabilités)
 - Retourne `[]models.Issue` avec `Source="llm_analyzer"`
 - Gère les erreurs (API call, parsing) avec messages descriptifs
 
@@ -157,32 +158,105 @@ Formatter (JSON/Markdown/CLI) → Output
 - **Models** : Issue, Location, AnalysisResult structures
 - **Patterns de sécurité** : Secrets, SQL injection détectés
 - **Concurrence** : LocalAnalyze orchestre les règles via goroutines
-- **LLM Analyzer** : `llm/analyzer.go` + `llm/prompt.go` implémentés avec appels HTTP à Mistral AI (4 tests passent)
+- **LLM Analyzer** : `llm/analyzer.go` + `llm/prompt.go` implémentés avec appels HTTP à NVIDIA API (4 tests passent + skips quand NVIDIA_API_KEY non défini)
 - **Result Aggregator** : `internal/aggregator/aggregator.go` implémenté (merge, deduplicate, sort, summary) (13 tests passent)
 - **Config Loading** : `LoadConfig()` implémenté avec support YAML + env vars (hiérarchie: CLI → env → YAML → defaults)
 - **Output Formatters** : JSON, CLI (avec ANSI colors), Markdown implémentés (3 tests passent)
 - **Cache Layer** : File-based cache avec TTL support implémenté (5 tests passent)
+- **Main CLI** : `cmd/main.go` + `cmd/analyze.go` + `cmd/batch.go` + `cmd/cache.go` + `cmd/config.go` - Cobra CLI complète avec tous les subcommands
+- **Integration Tests** : `tests/integration_test.go` avec 6 tests end-to-end (ParseDiff, LocalAnalyze, Formatter outputs)
+- **Security Fixes** : 7 vulnérabilités SonarQube corrigées (SHA-256, permissions 0600, path traversal, MkdirAll idempotency)
+- **LLM Provider Switch** : Migration de Mistral AI vers NVIDIA API (google/gemma-3n-e2b-it) pour meilleure détection vulnérabilités
 
 ### 🔄 En Cours / Stubs
-- **Main CLI** : `cmd/main.go` affiche usage seulement
+(Aucun)
 
 ### 📋 À Faire
-1. **CLI Integration** : Implémenter cobra commands (analyze, batch, cache-clear)
-2. **Testing** : Intégration tests (tests/integration_test.go)
-3. **Docker** : Valider build et image
+1. **Docker** : Valider build et image
+2. **Documentation** : Mettre à jour README avec exemples de CLI
 
-## 7. Commandes Utiles
+## 7. Commandes de Test Complètes
 
+### Tests Unitaires
 ```bash
-# Tests
-go test ./internal/analyzer/local -v
+# Tous les tests
+go test ./... -v
 
+# Tests spécifiques par module
+go test ./internal/analyzer/local -v
+go test ./internal/analyzer/llm -v
+go test ./internal/cache -v
+go test ./internal/aggregator -v
+go test ./internal/formatter -v
+go test ./internal/parser -v
+go test ./tests -v  # Tests d'intégration
+```
+
+### Tests Manuels - Analyse Locale (sans LLM)
+```bash
+# Format CLI
+./code-review-agent analyze --file=test_vuln.diff --format=cli
+
+# Format JSON
+./code-review-agent analyze --file=test_vuln.diff --format=json
+
+# Format Markdown
+./code-review-agent analyze --file=test_vuln.diff --format=markdown
+```
+
+### Tests Manuels - Avec LLM NVIDIA
+```bash
+# Charger les variables d'environnement
+set -a && source .env && set +a
+
+# Analyse complète (local + LLM NVIDIA)
+./code-review-agent analyze --file=test_vuln.diff --llm --format=cli --verbose
+
+# Format JSON avec LLM
+./code-review-agent analyze --file=test_vuln.diff --llm --format=json --verbose
+```
+
+### Tests Batch (plusieurs diffs)
+```bash
+mkdir test_diffs
+cp test_vuln.diff test_diffs/
+
+./code-review-agent batch --dir=test_diffs --output=results.md --verbose
+```
+
+### Tests Cache
+```bash
+# Analyser un fichier (cache dans ~/.cache/code-review-agent)
+./code-review-agent analyze --file=test_vuln.diff --format=json
+
+# Voir le cache
+ls -la ~/.cache/code-review-agent/
+
+# Nettoyer le cache
+./code-review-agent cache clear
+```
+
+### Build & Vérification
+```bash
 # Build
 go build -o code-review-agent ./cmd
 
-# Exécution (quand CLI sera implémentée)
-./code-review-agent analyze --file=changes.diff
-./code-review-agent analyze --file=changes.diff --llm=claude
+# Tests avec code coverage
+go test ./... -cover
+
+# Code quality
+go fmt ./...
+go vet ./...
+```
+
+### Quick Test (tous les tests en 1 commande)
+```bash
+echo "=== Tests ===" && go test ./... && \
+echo "=== Build ===" && go build -o code-review-agent ./cmd && \
+echo "=== CLI Test ===" && \
+set -a && source .env && set +a && \
+./code-review-agent analyze --file=test_vuln.diff --llm --format=cli --verbose && \
+echo "✅ Tous les tests réussis!"
 ```
 
 ## 8. Règles Anti-Gaspi (IMPORTANT)

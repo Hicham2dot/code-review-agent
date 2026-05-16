@@ -50,6 +50,10 @@ func Set(hash string, result *models.AnalysisResult, ttlSeconds int) error {
 		return fmt.Errorf("cache directory not available")
 	}
 
+	if err := os.MkdirAll(cacheDir, 0700); err != nil {
+		return fmt.Errorf("failed to create cache directory: %w", err)
+	}
+
 	entry := CacheEntry{
 		Result:    result,
 		Timestamp: time.Now(),
@@ -82,10 +86,7 @@ func Clear() error {
 
 func cacheDirectory() string {
 	if h := os.Getenv("HOME"); h != "" {
-		cacheDir := filepath.Join(h, ".cache", "code-review-agent")
-		if err := os.MkdirAll(cacheDir, 0700); err == nil {
-			return cacheDir
-		}
+		return filepath.Join(h, ".cache", "code-review-agent")
 	}
 	return ""
 }
