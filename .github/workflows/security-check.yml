@@ -1,0 +1,103 @@
+name: Security Code Review
+
+on:
+  push:
+    branches: [ main, develop ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  code-review:
+    runs-on: ubuntu-latest
+    permissions:
+      pull-requests: write
+      checks: write
+      contents: read
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build Docker image
+        run: docker build -t code-review-agent:latest .
+
+      - name: Extract diff
+        id: diff
+        run: |
+          if [ "${{ github.event_name }}" == "pull_request" ]; then
+            git diff origin/${{ github.base_ref }}...HEAD > /tmp/changes.diff
+          else
+            git diff origin/main...HEAD > /tmp/changes.diff
+          fi
+          echo "diff_file=/tmp/changes.diff" >> $GITHUB_OUTPUT
+
+      - name: Run Code Review Analysis
+        id: analysis
+        env:
+          NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
+        run: |
+          docker run --rm \
+            -e NVIDIA_API_KEY=$NVIDIA_API_KEY \
+            -v /tmp/changes.diff:/tmp/changes.diff \
+            -v /tmp/output:/tmp/output \
+            code-review-agent:latest \
+            analyze --file=/tmp/changes.diff --llm --format=json --verbose > /tmp/output/result.json 2>&1 || true
+
+          # Afficher le résultat brut pour debug
+          cat /tmp/output/result.json
+
+      - name: Parse and comment results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const resultFile = '/tmp/output/result.json';
+
+            if (!fs.existsSync(resultFile)) {
+              console.log('No results file found');
+              return;
+            }
+
+            const result = JSON.parse(fs.readFileSync(resultFile, 'utf8'));
+            const issues = result.issues || [];
+            const criticalIssues = issues.filter(i => i.severity === 'critical');
+
+            let comment = '## 🔍 Code Review Analysis\n\n';
+            comment += `**Status**: ${criticalIssues.length === 0 ? '✅ PASSED' : '❌ FAILED'}\n\n`;
+            comment += `**Summary**: ${issues.length} issue(s) found\n`;
+            comment += `- Critical: ${issues.filter(i => i.severity === 'critical').length}\n`;
+            comment += `- Major: ${issues.filter(i => i.severity === 'major').length}\n`;
+            comment += `- Minor: ${issues.filter(i => i.severity === 'minor').length}\n\n`;
+
+            if (issues.length > 0) {
+              comment += '### Issues\n\n';
+              issues.forEach((issue, idx) => {
+                const emoji = issue.severity === 'critical' ? '🔴' : issue.severity === 'major' ? '🟡' : '🟢';
+                comment += `${idx + 1}. ${emoji} **${issue.type}** (${issue.severity})\n`;
+                comment += `   - File: ${issue.location.file}:${issue.location.start_line}\n`;
+                comment += `   - Message: ${issue.message}\n`;
+                comment += `   - Suggestion: ${issue.suggestion}\n`;
+                comment += `   - Confidence: ${(issue.confidence * 100).toFixed(0)}%\n\n`;
+              });
+            }
+
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: comment
+            });
+
+      - name: Check for critical issues
+        run: |
+          if [ -f /tmp/output/result.json ]; then
+            CRITICAL_COUNT=$(jq '[.issues[] | select(.severity=="critical")] | length' /tmp/output/result.json)
+            if [ "$CRITICAL_COUNT" -gt 0 ]; then
+              echo "❌ Found $CRITICAL_COUNT critical issue(s) - blocking merge"
+              exit 1
+            fi
+          fi
+          echo "✅ Security check passed"

@@ -1,11 +1,15 @@
-version: '3.8'
+volumes:
+  diffs_data:
+  results_data:
 
 services:
   code-review-agent:
     build: .
+    restart: no
     environment:
       - NVIDIA_API_KEY=${NVIDIA_API_KEY}
     volumes:
-      - ./diffs:/app/diffs
-      - ./results:/app/results
+      - diffs_data:/app/diffs
+      - results_data:/app/results
     working_dir: /app
+    command: batch --dir=/app/diffs --output=/app/results/analysis.md --verbose

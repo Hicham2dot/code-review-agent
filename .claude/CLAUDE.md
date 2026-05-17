@@ -170,12 +170,15 @@ Formatter (JSON/Markdown/CLI) → Output
 - **Docker** : Dockerfile multi-stage, docker-compose.yml, .dockerignore, test scripts, Makefile.docker (✅ Complet)
 - **Deployment Docs** : DOCKER.md + DEPLOYMENT.md avec guides complets, scripts de test, Kubernetes templates
 - **Environment Setup** : .env.example créé, scripts/docker-test.sh pour validation
+- **README Documentation** : Mise à jour complète avec exemples CLI + Docker, statut du projet, flux de données, démonstration d'analyse (test_vuln.diff → 8 issues)
+- **Docker Validation** : docker-compose.yml sans warning de version, batch processing ✅, named volumes ✅, permissions ✅
+- **GitHub Actions CI/CD** : `.github/workflows/security-check.yml` avec analyse automatique PR/push, commentaires sur PR, blocage merge si critiques, `GITHUB_ACTIONS_SETUP.md` documentation complète
 
 ### 🔄 En Cours / Stubs
 (Aucun)
 
 ### 📋 À Faire
-1. **Documentation** : Mettre à jour README avec exemples de CLI + Docker
+(Aucun — **Projet complété** ✅)
 
 ## 7. Commandes de Test Complètes
 
