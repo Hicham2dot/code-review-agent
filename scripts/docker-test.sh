@@ -41,12 +41,12 @@ fi
 
 # 4. Test Version
 echo ""
-echo "4️⃣  Testing version command..."
-docker run --rm $IMAGE_NAME:$IMAGE_TAG version
+echo "4️⃣  Testing version flag..."
+docker run --rm $IMAGE_NAME:$IMAGE_TAG --version > /dev/null 2>&1
 if [ $? -eq 0 ]; then
-    echo "✅ Version command works"
+    echo "✅ Version flag works"
 else
-    echo "⚠️  Version command not available (OK)"
+    echo "⚠️  Version flag not available (OK)"
 fi
 
 # 5. Test with sample diff
@@ -58,7 +58,7 @@ cat > $TEST_DIFF << 'DIFF'
 +++ b/test.go
 @@ -1,3 +1,4 @@
  package main
- 
+
 +const apiKey = "sk-1234567890abcdef"
  func main() {}
 DIFF
