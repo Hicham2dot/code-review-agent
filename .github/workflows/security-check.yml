@@ -38,15 +38,20 @@ jobs:
         env:
           NVIDIA_API_KEY: ${{ secrets.NVIDIA_API_KEY }}
         run: |
+          # Créer le répertoire de sortie
+          mkdir -p /tmp/output
+
+          # Exécuter l'analyse
           docker run --rm \
             -e NVIDIA_API_KEY=$NVIDIA_API_KEY \
             -v /tmp/changes.diff:/tmp/changes.diff \
             -v /tmp/output:/tmp/output \
             code-review-agent:latest \
-            analyze --file=/tmp/changes.diff --llm --format=json --verbose > /tmp/output/result.json 2>&1 || true
+            analyze --file=/tmp/changes.diff --llm --format=json --verbose 2>&1 | tee /tmp/output/result.json
 
           # Afficher le résultat brut pour debug
-          cat /tmp/output/result.json
+          echo "=== Analysis Result ==="
+          cat /tmp/output/result.json || echo "No result file found"
 
       - name: Parse and comment results
         if: github.event_name == 'pull_request'
@@ -92,12 +97,18 @@ jobs:
             });
 
       - name: Check for critical issues
+        if: always()
         run: |
-          if [ -f /tmp/output/result.json ]; then
-            CRITICAL_COUNT=$(jq '[.issues[] | select(.severity=="critical")] | length' /tmp/output/result.json)
-            if [ "$CRITICAL_COUNT" -gt 0 ]; then
-              echo "❌ Found $CRITICAL_COUNT critical issue(s) - blocking merge"
-              exit 1
-            fi
+          if [ ! -f /tmp/output/result.json ]; then
+            echo "⚠️ Analysis did not produce results (check NVIDIA_API_KEY or network)"
+            exit 1
           fi
+
+          CRITICAL_COUNT=$(jq '[.issues[] | select(.severity=="critical")] | length' /tmp/output/result.json 2>/dev/null || echo 0)
+
+          if [ "$CRITICAL_COUNT" -gt 0 ]; then
+            echo "❌ Found $CRITICAL_COUNT critical issue(s) - blocking merge"
+            exit 1
+          fi
+
           echo "✅ Security check passed"
