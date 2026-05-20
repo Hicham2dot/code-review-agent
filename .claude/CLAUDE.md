@@ -96,6 +96,17 @@ internal/analyzer/
     ├── analyzer.go                 # LLMAnalyze(hunks, cfg) → ([]Issue, error) + tests
     ├── prompt.go                   # BuildPrompt(hunks) + ParseLLMResponse(raw)
     └── analyzer_test.go            # 4 tests (tous passent ✓)
+
+internal/storage/
+├── sqlite.go                       # SQLite persistence layer (Phase 2)
+│   ├── Store struct + methods
+│   ├── NewStore(dbPath) → *Store
+│   ├── Migrate() → tables (repositories, analyses, issues)
+│   ├── UpsertRepository(name, path) → int64
+│   ├── CreateAnalysis(repoID, result) → int64
+│   ├── UpdateAnalysisResult(diffHash, result)
+│   └── ListAnalysesForRepo(repoID) → []AnalysisResult
+└── sqlite_test.go                  # 6 tests unitaires (tous passent ✓)
 ```
 
 ### Fichiers Clés Externes
@@ -107,6 +118,7 @@ internal/analyzer/
 | `internal/config/config.go` | Config structs + LoadConfig() ✅ Implémenté |
 | `internal/formatter/` | JSON/Markdown/CLI output formatters ✅ Implémentés |
 | `internal/cache/filedb.go` | File-based cache manager ✅ Implémenté |
+| `internal/storage/sqlite.go` | SQLite persistence (Phase 2) ✅ Implémenté |
 
 ### Fichiers LLM Implémentés
 
@@ -173,6 +185,7 @@ Formatter (JSON/Markdown/CLI) → Output
 - **README Documentation** : Mise à jour complète avec exemples CLI + Docker, statut du projet, flux de données, démonstration d'analyse (test_vuln.diff → 8 issues)
 - **Docker Validation** : docker-compose.yml sans warning de version, batch processing ✅, named volumes ✅, permissions ✅
 - **GitHub Actions CI/CD** : `.github/workflows/security-check.yml` avec analyse automatique PR/push, commentaires sur PR, blocage merge si critiques, `GITHUB_ACTIONS_SETUP.md` documentation complète
+- **Phase 2 : Storage SQLite** : `internal/storage/sqlite.go` avec tables (repositories, analyses, issues), API CRUD complète (NewStore, Migrate, UpsertRepository, CreateAnalysis, UpdateAnalysisResult, ListAnalysesForRepo), WAL mode + busy_timeout, 6 tests unitaires passants (100% ✅)
 
 ### 🔄 En Cours / Stubs
 (Aucun)

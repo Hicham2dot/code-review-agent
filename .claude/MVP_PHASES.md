@@ -28,7 +28,13 @@ go get github.com/go-chi/chi/v5 modernc.org/sqlite
 - Tables: repositories, analyses, issues
 - Fonctions CRUD: Migrate, UpsertRepository, CreateAnalysis, UpdateAnalysisResult, ListAnalysesForRepo
 - Connexion WAL mode avec timeout
-- **Status**: À FAIRE
+ Le rôle du package storage est de :
+  créer la base de données,
+  créer les tables,
+  enregistrer les analyses,
+  enregistrer les problèmes détectés,
+  récupérer les anciennes analyses.
+- **Status**:  COMPLÉTÉ ✓
 
 ### ⏳ Phase 3 : GitHub Webhook Parser
 **Nouveau fichier** : `internal/github/webhook.go`
