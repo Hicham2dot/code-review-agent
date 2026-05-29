@@ -109,8 +109,8 @@ func TestBuildAppJWT(t *testing.T) {
 	if err := json.Unmarshal(headerJSON, &header); err != nil {
 		t.Fatalf("unmarshal JWT header: %v", err)
 	}
-	if header["alg"] != "RS256" {
-		t.Errorf("expected alg RS256, got %q", header["alg"])
+	if header["alg"] != "PS256" {
+		t.Errorf("expected alg PS256, got %q", header["alg"])
 	}
 	if header["typ"] != "JWT" {
 		t.Errorf("expected typ JWT, got %q", header["typ"])

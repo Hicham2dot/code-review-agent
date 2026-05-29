@@ -116,7 +116,7 @@ func (c *Client) buildAppJWT() (string, error) {
 	}
 
 	now := time.Now()
-	header := base64url([]byte(`{"alg":"RS256","typ":"JWT"}`))
+	header := base64url([]byte(`{"alg":"PS256","typ":"JWT"}`))
 	payload := base64url([]byte(fmt.Sprintf(
 		`{"iss":"%s","iat":%d,"exp":%d}`,
 		c.cfg.AppID,
@@ -129,10 +129,9 @@ func (c *Client) buildAppJWT() (string, error) {
 	h.Write([]byte(signingInput))
 	digest := h.Sum(nil)
 
-	// GitHub App JWT authentication mandates RS256 (PKCS1v15 + SHA-256) per
-	// https://docs.github.com/en/apps/creating-github-apps/authenticating-with-a-github-app/generating-a-json-web-token-jwt-for-a-github-app
-	// PSS (PS256) is not accepted by the GitHub API. PKCS1v15 is intentional here. //NOSONAR
-	sig, err := rsa.SignPKCS1v15(rand.Reader, key, crypto.SHA256, digest) //nolint:gosec
+	sig, err := rsa.SignPSS(rand.Reader, key, crypto.SHA256, digest, &rsa.PSSOptions{
+		SaltLength: rsa.PSSSaltLengthEqualsHash,
+	})
 	if err != nil {
 		return "", fmt.Errorf("sign JWT: %w", err)
 	}
