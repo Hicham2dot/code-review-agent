@@ -107,6 +107,14 @@ internal/storage/
 │   ├── UpdateAnalysisResult(diffHash, result)
 │   └── ListAnalysesForRepo(repoID) → []AnalysisResult
 └── sqlite_test.go                  # 6 tests unitaires (tous passent ✓)
+
+internal/github/
+├── webhook.go                      # GitHub webhook parser (Phase 3)
+│   ├── PullRequestEvent struct
+│   ├── ValidateSignature(body, sig, secret) → error
+│   ├── ParseWebhookEvent(body) → *PullRequestEvent
+│   └── IsAnalyzableEvent(event) → bool
+└── webhook_test.go                 # 14 tests unitaires (tous passent ✓)
 ```
 
 ### Fichiers Clés Externes
@@ -186,6 +194,7 @@ Formatter (JSON/Markdown/CLI) → Output
 - **Docker Validation** : docker-compose.yml sans warning de version, batch processing ✅, named volumes ✅, permissions ✅
 - **GitHub Actions CI/CD** : `.github/workflows/security-check.yml` avec analyse automatique PR/push, commentaires sur PR, blocage merge si critiques, `GITHUB_ACTIONS_SETUP.md` documentation complète
 - **Phase 2 : Storage SQLite** : `internal/storage/sqlite.go` avec tables (repositories, analyses, issues), API CRUD complète (NewStore, Migrate, UpsertRepository, CreateAnalysis, UpdateAnalysisResult, ListAnalysesForRepo), WAL mode + busy_timeout, 6 tests unitaires passants (100% ✅)
+- **Phase 3 : GitHub Webhook Parser** : `internal/github/webhook.go` avec ValidateSignature (HMAC-SHA256), ParseWebhookEvent (JSON), IsAnalyzableEvent (opened/synchronize/reopened), 14 tests unitaires passants (100% ✅), stdlib only
 
 ### 🔄 En Cours / Stubs
 (Aucun)
