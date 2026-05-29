@@ -41,7 +41,7 @@ go get github.com/go-chi/chi/v5 modernc.org/sqlite
 - HMAC-SHA256 validation
 - ParseWebhookEvent
 - IsAnalyzableEvent (opened, synchronize, reopened)
-- **Status**: À FAIRE
+- **Status**: COMPLÉTÉ ✓
 
 ### ⏳ Phase 4 : GitHub API Client
 **Nouveau fichier** : `internal/github/client.go`
