@@ -15,6 +15,14 @@ type Config struct {
 	Cache    CacheConfig    `yaml:"cache"`
 	Analysis AnalysisConfig `yaml:"analysis"`
 	Output   OutputConfig   `yaml:"output"`
+	GitHub   GitHubConfig   `yaml:"github"`
+}
+
+type GitHubConfig struct {
+	Token          string `yaml:"token"`
+	AppID          string `yaml:"app_id"`
+	PrivateKeyPath string `yaml:"private_key_path"`
+	InstallationID string `yaml:"installation_id"`
 }
 
 type LLMConfig struct {
@@ -139,5 +147,17 @@ func overlayEnv(cfg *Config) {
 	}
 	if v := os.Getenv("REVIEW_OUTPUT_FORMAT"); v != "" {
 		cfg.Output.Format = v
+	}
+	if v := os.Getenv("GITHUB_TOKEN"); v != "" {
+		cfg.GitHub.Token = v
+	}
+	if v := os.Getenv("GITHUB_APP_ID"); v != "" {
+		cfg.GitHub.AppID = v
+	}
+	if v := os.Getenv("GITHUB_PRIVATE_KEY_PATH"); v != "" {
+		cfg.GitHub.PrivateKeyPath = v
+	}
+	if v := os.Getenv("GITHUB_INSTALLATION_ID"); v != "" {
+		cfg.GitHub.InstallationID = v
 	}
 }

@@ -49,7 +49,7 @@ go get github.com/go-chi/chi/v5 modernc.org/sqlite
 - PostPRComment(owner, repo, prNumber, body)
 - CreateCheckRun(owner, repo, sha, status, conclusion, summary)
 - Support PAT et GitHub App JWT (RS256)
-- **Status**: À FAIRE
+- **Status**: COMPLÉTÉ ✓
 
 ### ⏳ Phase 5 : Serveur HTTP
 **Nouveau fichier** : `internal/server/server.go` + `internal/server/handlers.go`
