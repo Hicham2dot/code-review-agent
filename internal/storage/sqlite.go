@@ -213,6 +213,80 @@ WHERE diff_hash = ?
 	return err
 }
 
+// GetAnalysisByHash returns a single analysis by its diff hash, or nil if not found.
+func (s *Store) GetAnalysisByHash(hash string) (*models.AnalysisResult, error) {
+	query := `
+SELECT diff_hash, timestamp, file_count, total_lines, duration_ms,
+       critical_count, major_count, minor_count, total_issues, quality, avg_confidence
+FROM analyses
+WHERE diff_hash = ?
+LIMIT 1
+`
+	row := s.db.QueryRow(query, hash)
+	var result models.AnalysisResult
+	err := row.Scan(
+		&result.DiffHash,
+		&result.Timestamp,
+		&result.FileCount,
+		&result.TotalLines,
+		&result.Duration,
+		&result.Summary.CriticalCount,
+		&result.Summary.MajorCount,
+		&result.Summary.MinorCount,
+		&result.Summary.TotalIssues,
+		&result.Summary.Quality,
+		&result.Summary.Confidence,
+	)
+	if err == sql.ErrNoRows {
+		return nil, nil
+	}
+	if err != nil {
+		return nil, fmt.Errorf("failed to query analysis by hash: %w", err)
+	}
+	result.Issues = []models.Issue{}
+	return &result, nil
+}
+
+// ListRecentAnalyses returns the most recent analyses across all repos, newest first.
+func (s *Store) ListRecentAnalyses(limit int) ([]models.AnalysisResult, error) {
+	query := `
+SELECT diff_hash, timestamp, file_count, total_lines, duration_ms,
+       critical_count, major_count, minor_count, total_issues, quality, avg_confidence
+FROM analyses
+ORDER BY timestamp DESC
+LIMIT ?
+`
+	rows, err := s.db.Query(query, limit)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query recent analyses: %w", err)
+	}
+	defer rows.Close()
+
+	var results []models.AnalysisResult
+	for rows.Next() {
+		var result models.AnalysisResult
+		err := rows.Scan(
+			&result.DiffHash,
+			&result.Timestamp,
+			&result.FileCount,
+			&result.TotalLines,
+			&result.Duration,
+			&result.Summary.CriticalCount,
+			&result.Summary.MajorCount,
+			&result.Summary.MinorCount,
+			&result.Summary.TotalIssues,
+			&result.Summary.Quality,
+			&result.Summary.Confidence,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan analysis row: %w", err)
+		}
+		result.Issues = []models.Issue{}
+		results = append(results, result)
+	}
+	return results, rows.Err()
+}
+
 // ListAnalysesForRepo returns all analyses for a repository (without nested issues).
 func (s *Store) ListAnalysesForRepo(repoID int64) ([]models.AnalysisResult, error) {
 	query := `

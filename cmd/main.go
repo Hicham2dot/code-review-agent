@@ -29,8 +29,9 @@ func init() {
 	initBatchCmd()
 	initCacheCmd()
 	initConfigCommands()
+	initServerCmd()
 
-	rootCmd.AddCommand(analyzeCmd, batchCmd, cacheCmd, configCmd)
+	rootCmd.AddCommand(analyzeCmd, batchCmd, cacheCmd, configCmd, serverCmd)
 }
 
 func main() {

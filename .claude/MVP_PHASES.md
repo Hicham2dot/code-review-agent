@@ -55,7 +55,7 @@ go get github.com/go-chi/chi/v5 modernc.org/sqlite
 **Nouveau fichier** : `internal/server/server.go` + `internal/server/handlers.go`
 - Router chi avec 7 routes
 - Webhook handler avec flux async (validation → 200 → goroutine → analyse → comment PR)
-- **Status**: À FAIRE
+- **Status**: COMPLÉTÉ ✓
 
 ### ⏳ Phase 6 : Dashboard HTML
 **Nouveau fichier** : `web/templates/dashboard.html`

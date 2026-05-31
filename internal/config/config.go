@@ -16,6 +16,13 @@ type Config struct {
 	Analysis AnalysisConfig `yaml:"analysis"`
 	Output   OutputConfig   `yaml:"output"`
 	GitHub   GitHubConfig   `yaml:"github"`
+	Server   ServerConfig   `yaml:"server"`
+}
+
+type ServerConfig struct {
+	Host          string `yaml:"host"`
+	Port          int    `yaml:"port"`
+	WebhookSecret string `yaml:"webhook_secret"`
 }
 
 type GitHubConfig struct {
@@ -69,6 +76,10 @@ func LoadConfig() *Config {
 		},
 		Output: OutputConfig{
 			Format: "json",
+		},
+		Server: ServerConfig{
+			Host: "0.0.0.0",
+			Port: 8080,
 		},
 	}
 
@@ -159,5 +170,16 @@ func overlayEnv(cfg *Config) {
 	}
 	if v := os.Getenv("GITHUB_INSTALLATION_ID"); v != "" {
 		cfg.GitHub.InstallationID = v
+	}
+	if v := os.Getenv("SERVER_HOST"); v != "" {
+		cfg.Server.Host = v
+	}
+	if v := os.Getenv("SERVER_PORT"); v != "" {
+		if n, err := strconv.Atoi(v); err == nil {
+			cfg.Server.Port = n
+		}
+	}
+	if v := os.Getenv("WEBHOOK_SECRET"); v != "" {
+		cfg.Server.WebhookSecret = v
 	}
 }
