@@ -47,12 +47,12 @@ func (s *Server) statusHandler(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusOK, map[string]any{
-		"status":          "ok",
-		"uptime_seconds":  uptime,
-		"version":         "0.1.0",
-		"analyses_count":  analysesCount,
-		"llm_enabled":     s.cfg.Analysis.AIEnabled,
-		"cache_enabled":   s.cfg.Cache.Enabled,
+		"status":         "ok",
+		"uptime_seconds": uptime,
+		"version":        "0.1.0",
+		"analyses_count": analysesCount,
+		"llm_enabled":    s.cfg.Analysis.AIEnabled,
+		"cache_enabled":  s.cfg.Cache.Enabled,
 	})
 }
 
