@@ -7,7 +7,6 @@ import (
 	"time"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/go-chi/chi/v5/middleware"
 
 	"code-review-agent/internal/config"
 	"code-review-agent/internal/storage"
@@ -43,9 +42,9 @@ func New(cfg config.Config, store *storage.Store) *Server {
 func (s *Server) buildRouter() chi.Router {
 	r := chi.NewRouter()
 
-	r.Use(middleware.Logger)
-	r.Use(middleware.Recoverer)
-	r.Use(middleware.RequestID)
+	r.Use(Logger)
+	r.Use(Recoverer)
+	r.Use(JSONContentType)
 
 	r.Get("/health", s.healthHandler)
 
@@ -75,4 +74,3 @@ func (s *Server) Start() error {
 func (s *Server) Shutdown(ctx context.Context) error {
 	return s.httpSrv.Shutdown(ctx)
 }
-
