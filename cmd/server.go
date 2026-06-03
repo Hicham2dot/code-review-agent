@@ -19,6 +19,7 @@ var (
 	serverHost          string
 	serverWebhookSecret string
 	serverDBPath        string
+	serverGitHubAppID   string
 )
 
 var serverCmd = &cobra.Command{
@@ -33,6 +34,7 @@ func initServerCmd() {
 	serverCmd.Flags().StringVar(&serverHost, "host", "0.0.0.0", "Adresse d'écoute")
 	serverCmd.Flags().StringVar(&serverWebhookSecret, "webhook-secret", "", "Secret GitHub webhook (HMAC-SHA256)")
 	serverCmd.Flags().StringVar(&serverDBPath, "db", "", "Chemin SQLite (optionnel)")
+	serverCmd.Flags().StringVar(&serverGitHubAppID, "github-app-id", "", "GitHub App ID (authentification App)")
 }
 
 func runServer(cmd *cobra.Command, args []string) error {
@@ -45,6 +47,9 @@ func runServer(cmd *cobra.Command, args []string) error {
 	}
 	if serverWebhookSecret != "" {
 		cfg.Server.WebhookSecret = serverWebhookSecret
+	}
+	if serverGitHubAppID != "" {
+		cfg.GitHub.AppID = serverGitHubAppID
 	}
 
 	// Optional SQLite storage

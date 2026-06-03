@@ -162,6 +162,16 @@ func (s *Server) analyzeHandler(w http.ResponseWriter, r *http.Request) {
 
 	result := aggregator.Aggregate(localIssues, llmIssues, hunks, diff)
 
+	// Persist to SQLite if store is configured
+	if s.store != nil {
+		repoID, err := s.store.UpsertRepository("on-demand", "on-demand")
+		if err == nil {
+			if _, err := s.store.CreateAnalysis(repoID, &result); err != nil {
+				log.Printf("[analyze] CreateAnalysis: %v", err)
+			}
+		}
+	}
+
 	writeJSON(w, http.StatusOK, &result)
 }
 
