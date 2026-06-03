@@ -1,6 +1,7 @@
 volumes:
   diffs_data:
   results_data:
+  sqlite_data:
 
 services:
   code-review-agent:
@@ -13,3 +14,16 @@ services:
       - results_data:/app/results
     working_dir: /app
     command: batch --dir=/app/diffs --output=/app/results/analysis.md --verbose
+
+  code-review-server:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      - NVIDIA_API_KEY=${NVIDIA_API_KEY}
+      - WEBHOOK_SECRET=${WEBHOOK_SECRET}
+      - GITHUB_APP_ID=${GITHUB_APP_ID}
+      - GITHUB_KEY_B64=${GITHUB_KEY_B64}
+    volumes:
+      - sqlite_data:/data
