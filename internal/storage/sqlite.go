@@ -185,6 +185,48 @@ VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
 }
 
 // UpdateAnalysisResult updates the summary and duration of an existing analysis
+// GetIssuesByAnalysisHash returns all issues associated with an analysis diff hash.
+func (s *Store) GetIssuesByAnalysisHash(hash string) ([]models.Issue, error) {
+	query := `
+SELECT i.issue_id, i.type, i.severity, i.file, i.start_line,
+       i.end_line, i.message, i.suggestion, i.confidence, i.source
+FROM issues i
+JOIN analyses a ON i.analysis_id = a.id
+WHERE a.diff_hash = ?
+ORDER BY i.severity, i.confidence DESC
+`
+	rows, err := s.db.Query(query, hash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to query issues: %w", err)
+	}
+	defer rows.Close()
+
+	var issues []models.Issue
+	for rows.Next() {
+		var iss models.Issue
+		err := rows.Scan(
+			&iss.ID,
+			&iss.Type,
+			&iss.Severity,
+			&iss.Location.File,
+			&iss.Location.StartLine,
+			&iss.Location.EndLine,
+			&iss.Message,
+			&iss.Suggestion,
+			&iss.Confidence,
+			&iss.Source,
+		)
+		if err != nil {
+			return nil, fmt.Errorf("failed to scan issue row: %w", err)
+		}
+		issues = append(issues, iss)
+	}
+	if issues == nil {
+		issues = []models.Issue{}
+	}
+	return issues, rows.Err()
+}
+
 // identified by diff_hash. Does not affect already-inserted issues.
 func (s *Store) UpdateAnalysisResult(diffHash string, result *models.AnalysisResult) error {
 	query := `

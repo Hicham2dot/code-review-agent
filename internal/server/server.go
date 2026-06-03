@@ -47,12 +47,14 @@ func (s *Server) buildRouter() chi.Router {
 	r.Use(JSONContentType)
 
 	r.Get("/health", s.healthHandler)
+	r.Get("/dashboard", s.dashboardHandler)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		r.Get("/status", s.statusHandler)
 		r.Post("/analyze", s.analyzeHandler)
 		r.Get("/analyses", s.listAnalysesHandler)
 		r.Get("/analyses/{hash}", s.getAnalysisHandler)
+		r.Get("/analyses/{hash}/issues", s.getAnalysisIssuesHandler)
 		r.Delete("/cache", s.clearCacheHandler)
 	})
 

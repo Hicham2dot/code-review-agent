@@ -1,0 +1,464 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Code Review Agent — Dashboard</title>
+  <style>
+    :root {
+      --bg:       #1a202c;
+      --surface:  #2d3748;
+      --border:   #4a5568;
+      --text:     #e2e8f0;
+      --muted:    #a0aec0;
+      --accent:   #63b3ed;
+      --critical: #fc8181;
+      --major:    #f6ad55;
+      --minor:    #f6e05e;
+      --success:  #68d391;
+      --radius:   8px;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      background: var(--bg);
+      color: var(--text);
+      font-family: system-ui, -apple-system, sans-serif;
+      font-size: 14px;
+      line-height: 1.5;
+    }
+
+    /* ── Header ── */
+    header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 16px 24px;
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+    }
+    header h1 { font-size: 18px; font-weight: 600; }
+    .last-updated { font-size: 12px; color: var(--muted); }
+
+    /* ── Main layout ── */
+    main { padding: 24px; display: flex; flex-direction: column; gap: 24px; }
+
+    /* ── Status cards ── */
+    .cards {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+      gap: 16px;
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px;
+    }
+    .card-label { font-size: 11px; text-transform: uppercase; letter-spacing: .06em; color: var(--muted); margin-bottom: 8px; }
+    .card-value { font-size: 28px; font-weight: 700; }
+    .card-sub   { font-size: 12px; color: var(--muted); margin-top: 4px; }
+    .badge-on  { color: var(--success); }
+    .badge-off { color: var(--critical); }
+
+    /* ── Sections ── */
+    section {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .section-title {
+      padding: 12px 16px;
+      font-weight: 600;
+      font-size: 13px;
+      border-bottom: 1px solid var(--border);
+      background: rgba(255,255,255,.03);
+    }
+
+    /* ── Timeline ── */
+    #timeline-body { max-height: 260px; overflow-y: auto; }
+    .timeline-row {
+      display: grid;
+      grid-template-columns: 160px 90px 80px 60px 1fr;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background .15s;
+    }
+    .timeline-row:last-child { border-bottom: none; }
+    .timeline-row:hover { background: rgba(99,179,237,.08); }
+    .timeline-row.selected { background: rgba(99,179,237,.15); border-left: 3px solid var(--accent); }
+    .timeline-header {
+      display: grid;
+      grid-template-columns: 160px 90px 80px 60px 1fr;
+      gap: 12px;
+      padding: 8px 16px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .hash { font-family: monospace; font-size: 12px; color: var(--accent); }
+    .quality-badge {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+    }
+    .q-A { background: #276749; color: #9ae6b4; }
+    .q-B { background: #2c5282; color: #90cdf4; }
+    .q-C { background: #744210; color: #fbd38d; }
+    .q-D, .q-F { background: #742a2a; color: #feb2b2; }
+
+    /* ── Issues toolbar ── */
+    .issues-toolbar {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      flex-wrap: wrap;
+    }
+    .issues-toolbar select,
+    .issues-toolbar input {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      color: var(--text);
+      border-radius: 4px;
+      padding: 5px 10px;
+      font-size: 13px;
+    }
+    .issues-toolbar input { flex: 1; min-width: 160px; }
+    .filter-btn {
+      padding: 4px 12px;
+      border-radius: 4px;
+      border: 1px solid var(--border);
+      background: var(--bg);
+      color: var(--text);
+      cursor: pointer;
+      font-size: 12px;
+      font-weight: 600;
+      transition: background .15s;
+    }
+    .filter-btn.active-critical { border-color: var(--critical); color: var(--critical); background: rgba(252,129,129,.1); }
+    .filter-btn.active-major    { border-color: var(--major);    color: var(--major);    background: rgba(246,173,85,.1); }
+    .filter-btn.active-minor    { border-color: var(--minor);    color: var(--minor);    background: rgba(246,224,94,.1); }
+
+    /* ── Issues table ── */
+    #issues-body { max-height: 400px; overflow-y: auto; }
+    .issues-table { width: 100%; border-collapse: collapse; }
+    .issues-table th {
+      position: sticky; top: 0;
+      background: var(--surface);
+      padding: 8px 12px;
+      text-align: left;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .06em;
+      color: var(--muted);
+      border-bottom: 1px solid var(--border);
+    }
+    .issues-table td {
+      padding: 9px 12px;
+      border-bottom: 1px solid rgba(74,85,104,.4);
+      vertical-align: top;
+    }
+    .issues-table tr:last-child td { border-bottom: none; }
+    .issues-table tr:hover td { background: rgba(255,255,255,.02); }
+    .sev {
+      display: inline-block;
+      padding: 2px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .sev-critical { background: rgba(252,129,129,.2); color: var(--critical); }
+    .sev-major    { background: rgba(246,173,85,.2);  color: var(--major); }
+    .sev-minor    { background: rgba(246,224,94,.2);  color: var(--minor); }
+    .type-tag {
+      font-size: 11px;
+      color: var(--muted);
+      font-family: monospace;
+    }
+    .file-loc { font-family: monospace; font-size: 12px; color: var(--accent); }
+    .conf { font-size: 12px; color: var(--muted); }
+    .empty-state {
+      text-align: center;
+      padding: 40px;
+      color: var(--muted);
+      font-size: 13px;
+    }
+
+    /* ── Scrollbar ── */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: var(--bg); }
+    ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <h1>Code Review Agent</h1>
+  <span class="last-updated">Last updated: <span id="last-updated">—</span>
+    <span id="refresh-indicator" style="margin-left:8px;color:var(--accent);font-size:11px;"></span>
+  </span>
+</header>
+
+<main>
+
+  <!-- Status cards -->
+  <div class="cards">
+    <div class="card">
+      <div class="card-label">Analyses</div>
+      <div class="card-value" id="card-analyses">—</div>
+      <div class="card-sub">total stored</div>
+    </div>
+    <div class="card">
+      <div class="card-label">LLM</div>
+      <div class="card-value" id="card-llm">—</div>
+      <div class="card-sub">NVIDIA API</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Cache</div>
+      <div class="card-value" id="card-cache">—</div>
+      <div class="card-sub">file-based</div>
+    </div>
+    <div class="card">
+      <div class="card-label">Uptime</div>
+      <div class="card-value" id="card-uptime">—</div>
+      <div class="card-sub">hh:mm:ss</div>
+    </div>
+  </div>
+
+  <!-- Timeline -->
+  <section>
+    <div class="section-title">Recent Analyses <span id="timeline-count" style="color:var(--muted);font-weight:400;"></span></div>
+    <div class="timeline-header">
+      <span>Date</span><span>Hash</span><span>Issues</span><span>Quality</span><span>Files / Lines</span>
+    </div>
+    <div id="timeline-body">
+      <div class="empty-state">No analyses yet — run an analysis or wait for a webhook.</div>
+    </div>
+  </section>
+
+  <!-- Issues table -->
+  <section>
+    <div class="section-title">Issues <span id="issues-title" style="color:var(--muted);font-weight:400;font-size:12px;"></span></div>
+    <div class="issues-toolbar">
+      <select id="filter-severity" onchange="applyFilters()">
+        <option value="all">All severities</option>
+        <option value="critical">Critical</option>
+        <option value="major">Major</option>
+        <option value="minor">Minor</option>
+      </select>
+      <select id="filter-source" onchange="applyFilters()">
+        <option value="all">All sources</option>
+        <option value="local_analyzer">Local</option>
+        <option value="llm_analyzer">LLM</option>
+      </select>
+      <input id="search" type="text" placeholder="Search message or file…" oninput="applyFilters()" />
+      <button class="filter-btn" onclick="resetFilters()">Reset</button>
+    </div>
+    <div id="issues-body">
+      <div class="empty-state">Select an analysis in the timeline to view its issues.</div>
+    </div>
+  </section>
+
+</main>
+
+<script>
+  // ── State ──────────────────────────────────────────────
+  let selectedHash = null;
+  let allIssues    = [];
+  let analyses     = [];
+
+  // ── Boot ───────────────────────────────────────────────
+  document.addEventListener('DOMContentLoaded', () => {
+    refresh();
+    setInterval(refresh, 30_000);
+  });
+
+  async function refresh() {
+    showRefreshing(true);
+    await Promise.all([loadStatus(), loadAnalyses()]);
+    updateTimestamp();
+    showRefreshing(false);
+  }
+
+  function showRefreshing(on) {
+    document.getElementById('refresh-indicator').textContent = on ? '↻ refreshing…' : '';
+  }
+
+  // ── Status cards ───────────────────────────────────────
+  async function loadStatus() {
+    try {
+      const d = await fetch('/api/v1/status').then(r => r.json());
+
+      document.getElementById('card-analyses').textContent = d.analyses_count ?? '—';
+      document.getElementById('card-llm').innerHTML =
+        d.llm_enabled
+          ? '<span class="badge-on">Enabled</span>'
+          : '<span class="badge-off">Disabled</span>';
+      document.getElementById('card-cache').innerHTML =
+        d.cache_enabled
+          ? '<span class="badge-on">Enabled</span>'
+          : '<span class="badge-off">Disabled</span>';
+
+      const s = d.uptime_seconds ?? 0;
+      const h = String(Math.floor(s / 3600)).padStart(2,'0');
+      const m = String(Math.floor((s % 3600) / 60)).padStart(2,'0');
+      const sec = String(s % 60).padStart(2,'0');
+      document.getElementById('card-uptime').textContent = `${h}:${m}:${sec}`;
+    } catch (e) {
+      console.error('loadStatus:', e);
+    }
+  }
+
+  // ── Timeline ───────────────────────────────────────────
+  async function loadAnalyses() {
+    try {
+      const list = await fetch('/api/v1/analyses').then(r => r.json());
+      analyses = Array.isArray(list) ? list : [];
+
+      const container = document.getElementById('timeline-body');
+      document.getElementById('timeline-count').textContent =
+        analyses.length ? `(${analyses.length})` : '';
+
+      if (analyses.length === 0) {
+        container.innerHTML = '<div class="empty-state">No analyses yet.</div>';
+        return;
+      }
+
+      container.innerHTML = analyses.map(a => {
+        const date = new Date(a.timestamp).toLocaleString();
+        const hash8 = (a.diff_hash || '').slice(0, 8);
+        const total = a.summary?.total_issues ?? 0;
+        const quality = a.summary?.quality || '—';
+        const qClass = 'q-' + quality.charAt(0).toUpperCase();
+        const sel = a.diff_hash === selectedHash ? 'selected' : '';
+        return `<div class="timeline-row ${sel}" onclick="selectAnalysis('${a.diff_hash}')">
+          <span>${date}</span>
+          <span class="hash">${hash8}</span>
+          <span>${total} issue${total !== 1 ? 's' : ''}</span>
+          <span><span class="quality-badge ${qClass}">${quality}</span></span>
+          <span style="color:var(--muted)">${a.file_count ?? 0} files · ${a.total_lines ?? 0} lines</span>
+        </div>`;
+      }).join('');
+
+      // If selected hash still in list, refresh its issues silently
+      if (selectedHash && analyses.some(a => a.diff_hash === selectedHash)) {
+        await loadIssues(selectedHash);
+      }
+    } catch (e) {
+      console.error('loadAnalyses:', e);
+    }
+  }
+
+  // ── Issues ─────────────────────────────────────────────
+  async function selectAnalysis(hash) {
+    selectedHash = hash;
+    // Update timeline highlight
+    document.querySelectorAll('.timeline-row').forEach(row => {
+      row.classList.toggle('selected', row.getAttribute('onclick').includes(hash));
+    });
+    await loadIssues(hash);
+  }
+
+  async function loadIssues(hash) {
+    try {
+      const list = await fetch(`/api/v1/analyses/${hash}/issues`).then(r => r.json());
+      allIssues = Array.isArray(list) ? list : [];
+      const a = analyses.find(x => x.diff_hash === hash);
+      document.getElementById('issues-title').textContent =
+        a ? `— ${(hash||'').slice(0,8)} · ${allIssues.length} issue${allIssues.length!==1?'s':''}` : '';
+      applyFilters();
+    } catch (e) {
+      console.error('loadIssues:', e);
+    }
+  }
+
+  // ── Filters (in-memory, no network call) ───────────────
+  function applyFilters() {
+    const severity = document.getElementById('filter-severity').value;
+    const source   = document.getElementById('filter-source').value;
+    const search   = document.getElementById('search').value.toLowerCase();
+
+    const filtered = allIssues.filter(i => {
+      if (severity !== 'all' && i.severity !== severity) return false;
+      if (source   !== 'all' && i.source   !== source)   return false;
+      if (search && !i.message.toLowerCase().includes(search) &&
+                    !(i.location?.file||'').toLowerCase().includes(search)) return false;
+      return true;
+    });
+
+    renderIssues(filtered);
+  }
+
+  function resetFilters() {
+    document.getElementById('filter-severity').value = 'all';
+    document.getElementById('filter-source').value   = 'all';
+    document.getElementById('search').value          = '';
+    applyFilters();
+  }
+
+  // ── Render issues table ────────────────────────────────
+  function renderIssues(issues) {
+    const container = document.getElementById('issues-body');
+
+    if (!selectedHash) {
+      container.innerHTML = '<div class="empty-state">Select an analysis in the timeline to view its issues.</div>';
+      return;
+    }
+    if (issues.length === 0) {
+      container.innerHTML = '<div class="empty-state">No issues match the current filters.</div>';
+      return;
+    }
+
+    const rows = issues.map(i => {
+      const sev   = i.severity || 'minor';
+      const loc   = i.location || {};
+      const lines = loc.start_line === loc.end_line
+        ? `L${loc.start_line}`
+        : `L${loc.start_line}–${loc.end_line}`;
+      const conf  = i.confidence != null ? Math.round(i.confidence * 100) + '%' : '—';
+
+      return `<tr>
+        <td><span class="sev sev-${sev}">${sev}</span></td>
+        <td><span class="type-tag">${i.type || '—'}</span></td>
+        <td><span class="file-loc">${loc.file || '—'}</span><br>
+            <span style="font-size:11px;color:var(--muted)">${lines}</span></td>
+        <td style="max-width:320px">${escHtml(i.message || '')}
+          ${i.suggestion ? `<br><span style="font-size:11px;color:var(--muted)">💡 ${escHtml(i.suggestion)}</span>` : ''}
+        </td>
+        <td class="conf">${conf}</td>
+        <td style="font-size:11px;color:var(--muted)">${i.source === 'llm_analyzer' ? 'LLM' : 'Local'}</td>
+      </tr>`;
+    }).join('');
+
+    container.innerHTML = `
+      <table class="issues-table">
+        <thead><tr>
+          <th>Severity</th><th>Type</th><th>Location</th>
+          <th>Message / Suggestion</th><th>Conf.</th><th>Source</th>
+        </tr></thead>
+        <tbody>${rows}</tbody>
+      </table>`;
+  }
+
+  // ── Helpers ────────────────────────────────────────────
+  function updateTimestamp() {
+    document.getElementById('last-updated').textContent =
+      new Date().toLocaleTimeString();
+  }
+
+  function escHtml(str) {
+    return str.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  }
+</script>
+</body>
+</html>

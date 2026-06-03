@@ -19,6 +19,7 @@ import (
 	"code-review-agent/internal/github"
 	"code-review-agent/internal/models"
 	"code-review-agent/internal/parser"
+	web "code-review-agent/web"
 )
 
 func writeJSON(w http.ResponseWriter, status int, v any) {
@@ -214,4 +215,37 @@ func (s *Server) clearCacheHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	writeJSON(w, http.StatusOK, map[string]string{"status": "cache cleared"})
+}
+
+// GET /dashboard — sert le fichier HTML embarqué via go:embed
+func (s *Server) dashboardHandler(w http.ResponseWriter, r *http.Request) {
+	data, err := web.FS.ReadFile("templates/dashboard.html")
+	if err != nil {
+		http.Error(w, "dashboard not found", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(http.StatusOK)
+	w.Write(data) //nolint:errcheck
+}
+
+// GET /api/v1/analyses/{hash}/issues
+func (s *Server) getAnalysisIssuesHandler(w http.ResponseWriter, r *http.Request) {
+	hash := chi.URLParam(r, "hash")
+	if hash == "" {
+		writeJSON(w, http.StatusBadRequest, map[string]string{"error": "hash is required"})
+		return
+	}
+
+	if s.store == nil {
+		writeJSON(w, http.StatusServiceUnavailable, map[string]string{"error": "storage not configured"})
+		return
+	}
+
+	issues, err := s.store.GetIssuesByAnalysisHash(hash)
+	if err != nil {
+		writeJSON(w, http.StatusInternalServerError, map[string]string{"error": err.Error()})
+		return
+	}
+	writeJSON(w, http.StatusOK, issues)
 }
