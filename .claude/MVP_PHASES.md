@@ -63,13 +63,13 @@ go get github.com/go-chi/chi/v5 modernc.org/sqlite
 - Embarqué via `//go:embed`
 - Cards repos, timeline PRs, table issues filtrable
 - Auto-refresh 30s
-- **Status**: À FAIRE
+- **Status**: COMPLÉTÉ ✓
 
 ### ⏳ Phase 7 : Commande Serve
 **Nouveau fichier** : `cmd/serve.go`
 - Cobra command avec flags: --port, --db, --webhook-secret, --github-app-id
 - **Modification** `cmd/main.go`: +2 lignes (register serve)
-- **Status**: À FAIRE
+- **Status**: COMPLÉTÉ ✓
 
 ### ⏳ Phase 8 : Config Extension
 **Modification** `internal/config/config.go`
