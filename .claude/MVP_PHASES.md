@@ -75,13 +75,14 @@ go get github.com/go-chi/chi/v5 modernc.org/sqlite
 **Modification** `internal/config/config.go`
 - Ajout ServerConfig struct (Port, WebhookSecret, DBPath, GithubAppID, GithubKeyB64)
 - Env vars: SERVER_PORT, WEBHOOK_SECRET, DB_PATH, GITHUB_APP_ID, GITHUB_KEY_B64
-- **Status**: À FAIRE
+- **Status**:COMPLÉTÉ ✓
 
 ### ⏳ Phase 9 : Docker Update
 **Modifications** `Dockerfile`
 - RUN mkdir -p /data
 - EXPOSE 8080
 - CMD ["serve", "--port=8080", "--db=/data/reviews.db"]
+COMPLÉTÉ ✓
 
 **Modification** `docker-compose.yml`
 - Service: code-review-server, ports 8080, volumes sqlite_data:/data
