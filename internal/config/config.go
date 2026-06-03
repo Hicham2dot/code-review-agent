@@ -23,6 +23,9 @@ type ServerConfig struct {
 	Host          string `yaml:"host"`
 	Port          int    `yaml:"port"`
 	WebhookSecret string `yaml:"webhook_secret"`
+	DBPath        string `yaml:"db_path"`
+	GithubAppID   string `yaml:"github_app_id"`
+	GithubKeyB64  string `yaml:"github_key_b64"`
 }
 
 type GitHubConfig struct {
@@ -181,5 +184,14 @@ func overlayEnv(cfg *Config) {
 	}
 	if v := os.Getenv("WEBHOOK_SECRET"); v != "" {
 		cfg.Server.WebhookSecret = v
+	}
+	if v := os.Getenv("DB_PATH"); v != "" {
+		cfg.Server.DBPath = v
+	}
+	if v := os.Getenv("GITHUB_APP_ID"); v != "" {
+		cfg.Server.GithubAppID = v
+	}
+	if v := os.Getenv("GITHUB_KEY_B64"); v != "" {
+		cfg.Server.GithubKeyB64 = v
 	}
 }
