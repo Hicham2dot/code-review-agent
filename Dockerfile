@@ -12,6 +12,10 @@ WORKDIR /app
 COPY --from=builder /app/code-review-agent .
 RUN chown -R reviewer:reviewer /app && \
     mkdir -p /app/diffs /app/results && \
-    chmod 777 /app/diffs /app/results
+    chmod 777 /app/diffs /app/results && \
+    mkdir -p /data && \
+    chown reviewer:reviewer /data
 USER reviewer
+EXPOSE 8080
 ENTRYPOINT ["./code-review-agent"]
+CMD ["server", "--port=8080", "--db=/data/reviews.db"]
