@@ -60,6 +60,22 @@ func (s *Store) Close() error {
 // Migrate creates the required tables if they do not exist (idempotent).
 func (s *Store) Migrate() error {
 	schema := `
+CREATE TABLE IF NOT EXISTS users (
+    id            INTEGER PRIMARY KEY AUTOINCREMENT,
+    username      TEXT NOT NULL UNIQUE,
+    password_hash TEXT NOT NULL,
+    role          TEXT NOT NULL DEFAULT 'user',
+    created_at    DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS sessions (
+    id         INTEGER PRIMARY KEY AUTOINCREMENT,
+    token      TEXT NOT NULL UNIQUE,
+    user_id    INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    expires_at DATETIME NOT NULL,
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE IF NOT EXISTS repositories (
     id         INTEGER PRIMARY KEY AUTOINCREMENT,
     name       TEXT NOT NULL,
@@ -71,6 +87,7 @@ CREATE TABLE IF NOT EXISTS repositories (
 CREATE TABLE IF NOT EXISTS analyses (
     id             INTEGER PRIMARY KEY AUTOINCREMENT,
     repo_id        INTEGER NOT NULL REFERENCES repositories(id),
+    user_id        INTEGER REFERENCES users(id),
     diff_hash      TEXT NOT NULL UNIQUE,
     timestamp      DATETIME NOT NULL,
     file_count     INTEGER NOT NULL,
@@ -285,7 +302,11 @@ LIMIT 1
 	if err != nil {
 		return nil, fmt.Errorf("failed to query analysis by hash: %w", err)
 	}
-	result.Issues = []models.Issue{}
+	issues, err := s.GetIssuesByAnalysisHash(hash)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load issues for analysis: %w", err)
+	}
+	result.Issues = issues
 	return &result, nil
 }
 
@@ -327,6 +348,151 @@ LIMIT ?
 		results = append(results, result)
 	}
 	return results, rows.Err()
+}
+
+// UserInfo holds public user data.
+type UserInfo struct {
+	ID        int64  `json:"id"`
+	Username  string `json:"username"`
+	Role      string `json:"role"`
+	CreatedAt string `json:"created_at"`
+	Analyses  int    `json:"analyses_count"`
+}
+
+// CreateUser inserts a new user with a bcrypt-hashed password and role.
+func (s *Store) CreateUser(username, passwordHash, role string) (int64, error) {
+	res, err := s.db.Exec(
+		`INSERT INTO users (username, password_hash, role) VALUES (?, ?, ?)`,
+		username, passwordHash, role,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return res.LastInsertId()
+}
+
+// UpdateUserPassword updates the password hash for the given username.
+func (s *Store) UpdateUserPassword(username, passwordHash string) error {
+	_, err := s.db.Exec(`UPDATE users SET password_hash = ? WHERE username = ?`, passwordHash, username)
+	return err
+}
+
+// GetUserByUsername returns id, passwordHash and role for the given username.
+func (s *Store) GetUserByUsername(username string) (id int64, passwordHash, role string, err error) {
+	row := s.db.QueryRow(`SELECT id, password_hash, role FROM users WHERE username = ?`, username)
+	err = row.Scan(&id, &passwordHash, &role)
+	if err == sql.ErrNoRows {
+		return 0, "", "", nil
+	}
+	return
+}
+
+// GetUserRole returns the role of a user by ID.
+func (s *Store) GetUserRole(userID int64) (string, error) {
+	var role string
+	err := s.db.QueryRow(`SELECT role FROM users WHERE id = ?`, userID).Scan(&role)
+	if err == sql.ErrNoRows {
+		return "", nil
+	}
+	return role, err
+}
+
+// UserCount returns the number of users in the database.
+func (s *Store) UserCount() (int, error) {
+	var count int
+	err := s.db.QueryRow(`SELECT COUNT(*) FROM users`).Scan(&count)
+	return count, err
+}
+
+// ListUsers returns all users with their analyses count.
+func (s *Store) ListUsers() ([]UserInfo, error) {
+	rows, err := s.db.Query(`
+		SELECT u.id, u.username, u.role, u.created_at,
+		       COUNT(a.id) AS analyses_count
+		FROM users u
+		LEFT JOIN analyses a ON a.user_id = u.id
+		GROUP BY u.id
+		ORDER BY u.created_at DESC
+	`)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var users []UserInfo
+	for rows.Next() {
+		var u UserInfo
+		if err := rows.Scan(&u.ID, &u.Username, &u.Role, &u.CreatedAt, &u.Analyses); err != nil {
+			return nil, err
+		}
+		users = append(users, u)
+	}
+	if users == nil {
+		users = []UserInfo{}
+	}
+	return users, rows.Err()
+}
+
+// ListAnalysesForUser returns recent analyses submitted by a specific user.
+func (s *Store) ListAnalysesForUser(userID int64, limit int) ([]models.AnalysisResult, error) {
+	rows, err := s.db.Query(`
+		SELECT diff_hash, timestamp, file_count, total_lines, duration_ms,
+		       critical_count, major_count, minor_count, total_issues, quality, avg_confidence
+		FROM analyses
+		WHERE user_id = ?
+		ORDER BY timestamp DESC
+		LIMIT ?
+	`, userID, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []models.AnalysisResult
+	for rows.Next() {
+		var r models.AnalysisResult
+		if err := rows.Scan(&r.DiffHash, &r.Timestamp, &r.FileCount, &r.TotalLines,
+			&r.Duration, &r.Summary.CriticalCount, &r.Summary.MajorCount,
+			&r.Summary.MinorCount, &r.Summary.TotalIssues, &r.Summary.Quality, &r.Summary.Confidence,
+		); err != nil {
+			return nil, err
+		}
+		r.Issues = []models.Issue{}
+		results = append(results, r)
+	}
+	if results == nil {
+		results = []models.AnalysisResult{}
+	}
+	return results, rows.Err()
+}
+
+// CreateSession inserts a session token for a user.
+func (s *Store) CreateSession(token string, userID int64, expiresAt string) error {
+	_, err := s.db.Exec(
+		`INSERT INTO sessions (token, user_id, expires_at) VALUES (?, ?, ?)`,
+		token, userID, expiresAt,
+	)
+	return err
+}
+
+// GetSessionUserID returns the user ID for a valid (non-expired) session token.
+// Returns 0 if not found or expired.
+func (s *Store) GetSessionUserID(token string) (int64, error) {
+	var userID int64
+	err := s.db.QueryRow(
+		`SELECT user_id FROM sessions WHERE token = ? AND expires_at > CURRENT_TIMESTAMP`,
+		token,
+	).Scan(&userID)
+	if err == sql.ErrNoRows {
+		return 0, nil
+	}
+	return userID, err
+}
+
+// DeleteSession removes a session by token.
+func (s *Store) DeleteSession(token string) error {
+	_, err := s.db.Exec(`DELETE FROM sessions WHERE token = ?`, token)
+	return err
 }
 
 // ListAnalysesForRepo returns all analyses for a repository (without nested issues).

@@ -25,5 +25,6 @@ services:
       - WEBHOOK_SECRET=${WEBHOOK_SECRET}
       - GITHUB_APP_ID=${GITHUB_APP_ID}
       - GITHUB_KEY_B64=${GITHUB_KEY_B64}
+      - GITHUB_INSTALLATION_ID=${GITHUB_INSTALLATION_ID}
     volumes:
       - sqlite_data:/data

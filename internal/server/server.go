@@ -46,19 +46,35 @@ func (s *Server) buildRouter() chi.Router {
 	r.Use(Recoverer)
 	r.Use(JSONContentType)
 
+	// Public routes — no auth required
 	r.Get("/health", s.healthHandler)
-	r.Get("/dashboard", s.dashboardHandler)
-
-	r.Route("/api/v1", func(r chi.Router) {
-		r.Get("/status", s.statusHandler)
-		r.Post("/analyze", s.analyzeHandler)
-		r.Get("/analyses", s.listAnalysesHandler)
-		r.Get("/analyses/{hash}", s.getAnalysisHandler)
-		r.Get("/analyses/{hash}/issues", s.getAnalysisIssuesHandler)
-		r.Delete("/cache", s.clearCacheHandler)
-	})
-
 	r.Post("/webhook", s.webhookHandler)
+	r.Get("/login", s.loginPageHandler)
+	r.Post("/login", s.loginHandler)
+	r.Post("/logout", s.logoutHandler)
+
+	// Protected routes — require valid session
+	r.Group(func(r chi.Router) {
+		r.Use(SessionAuth(s.store))
+
+		r.Get("/dashboard", s.dashboardHandler)
+
+		r.Route("/api/v1", func(r chi.Router) {
+			r.Get("/status", s.statusHandler)
+			r.Post("/analyze", s.analyzeHandler)
+			r.Get("/analyses", s.listAnalysesHandler)
+			r.Get("/analyses/{hash}", s.getAnalysisHandler)
+			r.Get("/analyses/{hash}/issues", s.getAnalysisIssuesHandler)
+			r.Delete("/cache", s.clearCacheHandler)
+
+			// Admin-only API routes
+			r.Group(func(r chi.Router) {
+				r.Use(RequireAdmin)
+				r.Get("/admin/users", s.adminListUsersHandler)
+				r.Post("/admin/users", s.adminCreateUserHandler)
+			})
+		})
+	})
 
 	return r
 }

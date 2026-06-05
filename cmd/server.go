@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"golang.org/x/crypto/bcrypt"
 
 	"code-review-agent/internal/server"
 	"code-review-agent/internal/storage"
@@ -37,6 +38,43 @@ func initServerCmd() {
 	serverCmd.Flags().StringVar(&serverGitHubAppID, "github-app-id", "", "GitHub App ID (authentification App)")
 }
 
+func ensureAdminUser(store *storage.Store, adminPassword string) {
+	password := adminPassword
+	if password == "" {
+		password = "changeme"
+		log.Println("WARN: no ADMIN_PASSWORD set, using default password 'changeme' — change it immediately!")
+	}
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		log.Printf("failed to hash admin password: %v", err)
+		return
+	}
+
+	count, err := store.UserCount()
+	if err != nil {
+		log.Printf("failed to count users: %v", err)
+		return
+	}
+
+	if count == 0 {
+		if _, err := store.CreateUser("admin", string(hash), "admin"); err != nil {
+			log.Printf("failed to create admin user: %v", err)
+			return
+		}
+		log.Println("Admin user created (username: admin)")
+		return
+	}
+
+	// Admin already exists — update password if ADMIN_PASSWORD env var is set
+	if adminPassword != "" {
+		if err := store.UpdateUserPassword("admin", string(hash)); err != nil {
+			log.Printf("failed to update admin password: %v", err)
+			return
+		}
+		log.Println("Admin password updated from ADMIN_PASSWORD env var")
+	}
+}
+
 func runServer(cmd *cobra.Command, args []string) error {
 	// Apply CLI flags over loaded config
 	if serverPort != 8080 || cfg.Server.Port == 0 {
@@ -61,6 +99,7 @@ func runServer(cmd *cobra.Command, args []string) error {
 			log.Printf("Warning: could not open storage at %s: %v (continuing without persistence)", serverDBPath, err)
 		} else {
 			defer store.Close()
+			ensureAdminUser(store, cfg.Server.AdminPassword)
 		}
 	}
 

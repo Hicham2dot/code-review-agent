@@ -1,0 +1,45 @@
+# fly.toml app configuration file generated for code-review-agent on 2026-06-05T18:52:27+01:00
+#
+# See https://fly.io/docs/reference/configuration/ for information about how to use this file.
+#
+
+app = 'code-review-agent'
+primary_region = 'cdg'
+
+[build]
+  dockerfile = 'Dockerfile'
+
+[env]
+  DB_PATH = '/data/reviews.db'
+  SERVER_PORT = '8080'
+
+[[mounts]]
+  source = 'sqlite_data'
+  destination = '/data'
+
+[http_service]
+  internal_port = 8080
+  force_https = true
+  auto_stop_machines = 'stop'
+  auto_start_machines = true
+  min_machines_running = 0
+
+  [http_service.concurrency]
+    type = 'requests'
+    hard_limit = 200
+    soft_limit = 150
+
+[checks]
+  [checks.health]
+    port = 8080
+    type = 'http'
+    interval = '30s'
+    timeout = '5s'
+    grace_period = '10s'
+    method = 'GET'
+    path = '/health'
+
+[[vm]]
+  memory = '256mb'
+  cpus = 1
+  memory_mb = 256

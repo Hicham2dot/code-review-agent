@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Code Review Agent — Admin</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+    header{background:#1e293b;border-bottom:1px solid #334155;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between}
+    header h1{font-size:1.1rem;font-weight:700;color:#f1f5f9}
+    .badge-admin{background:#312e81;color:#a5b4fc;font-size:.75rem;padding:.2rem .6rem;border-radius:4px;font-weight:600;margin-left:.5rem}
+    .logout{background:transparent;border:1px solid #475569;border-radius:6px;color:#94a3b8;padding:.35rem .8rem;cursor:pointer;font-size:.85rem}
+    .logout:hover{border-color:#6366f1;color:#f1f5f9}
+    main{max-width:1100px;margin:2rem auto;padding:0 1.5rem}
+    .stats{display:grid;grid-template-columns:repeat(auto-fit,minmax(160px,1fr));gap:1rem;margin-bottom:1.5rem}
+    .stat{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:1.2rem;text-align:center}
+    .stat-value{font-size:2rem;font-weight:700;color:#6366f1}
+    .stat-label{font-size:.8rem;color:#64748b;margin-top:.25rem}
+    .card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:1.5rem;margin-bottom:1.5rem}
+    .card h2{font-size:1rem;font-weight:600;color:#f1f5f9;margin-bottom:1rem;display:flex;align-items:center;justify-content:space-between}
+    table{width:100%;border-collapse:collapse;font-size:.85rem}
+    th{text-align:left;color:#64748b;font-weight:600;padding:.5rem .75rem;border-bottom:1px solid #334155}
+    td{padding:.6rem .75rem;border-bottom:1px solid #1e293b22;color:#cbd5e1}
+    tr:hover td{background:#1e3a5f22}
+    .role-admin{display:inline-block;background:#312e81;color:#a5b4fc;padding:.15rem .5rem;border-radius:4px;font-size:.75rem;font-weight:600}
+    .role-user{display:inline-block;background:#0c4a6e;color:#7dd3fc;padding:.15rem .5rem;border-radius:4px;font-size:.75rem;font-weight:600}
+    .badge{display:inline-block;padding:.2rem .5rem;border-radius:4px;font-size:.75rem;font-weight:600}
+    .critical{background:#450a0a;color:#fca5a5}
+    .major{background:#431407;color:#fdba74}
+    .minor{background:#422006;color:#fcd34d}
+    .ok{background:#052e16;color:#86efac}
+    .empty{color:#475569;text-align:center;padding:2rem;font-size:.9rem}
+    .tab-bar{display:flex;gap:.5rem;margin-bottom:1.5rem}
+    .tab{background:#1e293b;border:1px solid #334155;border-radius:8px;padding:.5rem 1.2rem;cursor:pointer;font-size:.9rem;color:#94a3b8}
+    .tab.active{background:#312e81;border-color:#6366f1;color:#f1f5f9}
+    .section{display:none}.section.active{display:block}
+  </style>
+</head>
+<body>
+<header>
+  <div style="display:flex;align-items:center;gap:.5rem">
+    <h1>Code Review Agent</h1>
+    <span class="badge-admin">ADMIN</span>
+  </div>
+  <div style="display:flex;align-items:center;gap:1rem">
+    <span style="font-size:.85rem;color:#94a3b8">Bonjour, <strong>{{.Username}}</strong></span>
+    <form method="POST" action="/logout" style="margin:0">
+      <button class="logout" type="submit">Déconnexion</button>
+    </form>
+  </div>
+</header>
+<main>
+  <div class="stats">
+    <div class="stat"><div class="stat-value">{{.TotalUsers}}</div><div class="stat-label">Utilisateurs</div></div>
+    <div class="stat"><div class="stat-value">{{.TotalAnalyses}}</div><div class="stat-label">Analyses totales</div></div>
+    <div class="stat"><div class="stat-value">{{.TotalIssues}}</div><div class="stat-label">Issues détectées</div></div>
+    <div class="stat"><div class="stat-value">{{.TotalCritical}}</div><div class="stat-label">Critiques</div></div>
+  </div>
+
+  <div class="tab-bar">
+    <div class="tab active" onclick="showTab('users')">Utilisateurs</div>
+    <div class="tab" onclick="showTab('analyses')">Toutes les analyses</div>
+  </div>
+
+  <div id="users" class="section active">
+    <div class="card">
+      <h2>Utilisateurs <span style="font-size:.8rem;color:#64748b;font-weight:400">{{.TotalUsers}} comptes</span></h2>
+      {{if .Users}}
+      <table>
+        <thead><tr><th>Utilisateur</th><th>Rôle</th><th>Analyses</th><th>Membre depuis</th></tr></thead>
+        <tbody>
+          {{range .Users}}
+          <tr>
+            <td><strong>{{.Username}}</strong></td>
+            <td>{{if eq .Role "admin"}}<span class="role-admin">admin</span>{{else}}<span class="role-user">user</span>{{end}}</td>
+            <td>{{.Analyses}}</td>
+            <td>{{.CreatedAt}}</td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+      {{else}}<p class="empty">Aucun utilisateur.</p>{{end}}
+    </div>
+  </div>
+
+  <div id="analyses" class="section">
+    <div class="card">
+      <h2>Toutes les analyses <span style="font-size:.8rem;color:#64748b;font-weight:400">{{.TotalAnalyses}} total</span></h2>
+      {{if .Analyses}}
+      <table>
+        <thead><tr><th>Date</th><th>Hash</th><th>Fichiers</th><th>Lignes</th><th>Issues</th><th>Qualité</th></tr></thead>
+        <tbody>
+          {{range .Analyses}}
+          <tr>
+            <td>{{.Timestamp}}</td>
+            <td style="font-family:monospace;font-size:.75rem;color:#64748b">{{slice .DiffHash 0 8}}…</td>
+            <td>{{.FileCount}}</td>
+            <td>{{.TotalLines}}</td>
+            <td>
+              {{if gt .Summary.CriticalCount 0}}<span class="badge critical">{{.Summary.CriticalCount}}C</span> {{end}}
+              {{if gt .Summary.MajorCount 0}}<span class="badge major">{{.Summary.MajorCount}}M</span> {{end}}
+              {{if gt .Summary.MinorCount 0}}<span class="badge minor">{{.Summary.MinorCount}}m</span> {{end}}
+              {{if eq .Summary.TotalIssues 0}}<span class="badge ok">OK</span>{{end}}
+            </td>
+            <td>{{.Summary.Quality}}</td>
+          </tr>
+          {{end}}
+        </tbody>
+      </table>
+      {{else}}<p class="empty">Aucune analyse enregistrée.</p>{{end}}
+    </div>
+  </div>
+</main>
+<script>
+function showTab(name) {
+  document.querySelectorAll('.tab').forEach((t,i)=>{t.classList.toggle('active', ['users','analyses'][i]===name)});
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.getElementById(name).classList.add('active');
+}
+</script>
+</body>
+</html>

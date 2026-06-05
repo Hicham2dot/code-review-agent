@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Code Review Agent — Mon Espace</title>
+  <style>
+    *{box-sizing:border-box;margin:0;padding:0}
+    body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0f172a;color:#e2e8f0;min-height:100vh}
+    header{background:#1e293b;border-bottom:1px solid #334155;padding:1rem 2rem;display:flex;align-items:center;justify-content:space-between}
+    header h1{font-size:1.1rem;font-weight:700;color:#f1f5f9}
+    header span{font-size:.85rem;color:#94a3b8}
+    .logout{background:transparent;border:1px solid #475569;border-radius:6px;color:#94a3b8;padding:.35rem .8rem;cursor:pointer;font-size:.85rem}
+    .logout:hover{border-color:#6366f1;color:#f1f5f9}
+    main{max-width:900px;margin:2rem auto;padding:0 1.5rem}
+    .card{background:#1e293b;border:1px solid #334155;border-radius:10px;padding:1.5rem;margin-bottom:1.5rem}
+    .card h2{font-size:1rem;font-weight:600;color:#f1f5f9;margin-bottom:1rem}
+    textarea{width:100%;height:180px;background:#0f172a;border:1px solid #334155;border-radius:8px;color:#e2e8f0;font-family:monospace;font-size:.85rem;padding:.75rem;resize:vertical;outline:none}
+    textarea:focus{border-color:#6366f1}
+    .btn{background:#6366f1;border:none;border-radius:8px;color:#fff;font-size:.9rem;font-weight:600;padding:.6rem 1.4rem;cursor:pointer;margin-top:.75rem}
+    .btn:hover{background:#4f46e5}
+    table{width:100%;border-collapse:collapse;font-size:.85rem}
+    th{text-align:left;color:#64748b;font-weight:600;padding:.5rem .75rem;border-bottom:1px solid #334155}
+    td{padding:.6rem .75rem;border-bottom:1px solid #1e293b;color:#cbd5e1}
+    tr:hover td{background:#1e3a5f22}
+    .badge{display:inline-block;padding:.2rem .5rem;border-radius:4px;font-size:.75rem;font-weight:600}
+    .critical{background:#450a0a;color:#fca5a5}
+    .major{background:#431407;color:#fdba74}
+    .minor{background:#422006;color:#fcd34d}
+    .ok{background:#052e16;color:#86efac}
+    #result{margin-top:1rem;background:#0f172a;border:1px solid #334155;border-radius:8px;padding:1rem;font-size:.8rem;color:#94a3b8;white-space:pre-wrap;display:none}
+    .empty{color:#475569;text-align:center;padding:2rem;font-size:.9rem}
+  </style>
+</head>
+<body>
+<header>
+  <h1>Code Review Agent</h1>
+  <div style="display:flex;align-items:center;gap:1rem">
+    <span>Bonjour, <strong>{{.Username}}</strong></span>
+    <form method="POST" action="/logout" style="margin:0">
+      <button class="logout" type="submit">Déconnexion</button>
+    </form>
+  </div>
+</header>
+<main>
+  <div class="card">
+    <h2>Analyser un diff</h2>
+    <textarea id="diffInput" placeholder="Collez votre unified diff ici (git diff output)…"></textarea>
+    <button class="btn" onclick="analyze()">Lancer l'analyse</button>
+    <div id="result"></div>
+  </div>
+
+  <div class="card">
+    <h2>Mes analyses récentes</h2>
+    {{if .Analyses}}
+    <table>
+      <thead>
+        <tr>
+          <th>Date</th><th>Fichiers</th><th>Lignes</th><th>Issues</th><th>Qualité</th>
+        </tr>
+      </thead>
+      <tbody>
+        {{range .Analyses}}
+        <tr>
+          <td>{{.Timestamp}}</td>
+          <td>{{.FileCount}}</td>
+          <td>{{.TotalLines}}</td>
+          <td>
+            {{if gt .Summary.CriticalCount 0}}<span class="badge critical">{{.Summary.CriticalCount}} critical</span> {{end}}
+            {{if gt .Summary.MajorCount 0}}<span class="badge major">{{.Summary.MajorCount}} major</span> {{end}}
+            {{if gt .Summary.MinorCount 0}}<span class="badge minor">{{.Summary.MinorCount}} minor</span> {{end}}
+            {{if eq .Summary.TotalIssues 0}}<span class="badge ok">Aucun</span>{{end}}
+          </td>
+          <td>{{.Summary.Quality}}</td>
+        </tr>
+        {{end}}
+      </tbody>
+    </table>
+    {{else}}
+    <p class="empty">Aucune analyse pour le moment. Soumettez votre premier diff ci-dessus.</p>
+    {{end}}
+  </div>
+</main>
+<script>
+async function analyze() {
+  const diff = document.getElementById('diffInput').value.trim();
+  const result = document.getElementById('result');
+  if (!diff) { alert('Collez un diff avant de lancer.'); return; }
+  result.style.display = 'block';
+  result.textContent = 'Analyse en cours…';
+  try {
+    const resp = await fetch('/api/v1/analyze', {
+      method: 'POST',
+      headers: {'Content-Type': 'text/plain'},
+      body: diff
+    });
+    const data = await resp.json();
+    result.textContent = JSON.stringify(data, null, 2);
+    setTimeout(() => location.reload(), 2000);
+  } catch(e) {
+    result.textContent = 'Erreur: ' + e.message;
+  }
+}
+</script>
+</body>
+</html>

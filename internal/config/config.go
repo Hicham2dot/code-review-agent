@@ -26,12 +26,15 @@ type ServerConfig struct {
 	DBPath        string `yaml:"db_path"`
 	GithubAppID   string `yaml:"github_app_id"`
 	GithubKeyB64  string `yaml:"github_key_b64"`
+	APIKey        string `yaml:"api_key"`
+	AdminPassword string `yaml:"admin_password"`
 }
 
 type GitHubConfig struct {
 	Token          string `yaml:"token"`
 	AppID          string `yaml:"app_id"`
 	PrivateKeyPath string `yaml:"private_key_path"`
+	PrivateKeyB64  string `yaml:"private_key_b64"`
 	InstallationID string `yaml:"installation_id"`
 }
 
@@ -193,5 +196,12 @@ func overlayEnv(cfg *Config) {
 	}
 	if v := os.Getenv("GITHUB_KEY_B64"); v != "" {
 		cfg.Server.GithubKeyB64 = v
+		cfg.GitHub.PrivateKeyB64 = v
+	}
+	if v := os.Getenv("API_KEY"); v != "" {
+		cfg.Server.APIKey = v
+	}
+	if v := os.Getenv("ADMIN_PASSWORD"); v != "" {
+		cfg.Server.AdminPassword = v
 	}
 }

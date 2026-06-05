@@ -44,10 +44,11 @@ func (c *Client) getToken() (string, error) {
 	if c.cfg.Token != "" {
 		return c.cfg.Token, nil
 	}
-	if c.cfg.AppID != "" && c.cfg.PrivateKeyPath != "" && c.cfg.InstallationID != "" {
+	hasKey := c.cfg.PrivateKeyPath != "" || c.cfg.PrivateKeyB64 != ""
+	if c.cfg.AppID != "" && hasKey && c.cfg.InstallationID != "" {
 		return c.appInstallationToken()
 	}
-	return "", fmt.Errorf("no GitHub credentials configured: set GITHUB_TOKEN or GITHUB_APP_ID + GITHUB_PRIVATE_KEY_PATH + GITHUB_INSTALLATION_ID")
+	return "", fmt.Errorf("no GitHub credentials configured: set GITHUB_TOKEN or GITHUB_APP_ID + (GITHUB_KEY_B64 or GITHUB_PRIVATE_KEY_PATH) + GITHUB_INSTALLATION_ID")
 }
 
 // appInstallationToken generates a GitHub App JWT and exchanges it for an installation access token.
@@ -91,9 +92,19 @@ func (c *Client) appInstallationToken() (string, error) {
 // buildAppJWT constructs a signed RS256 JWT for GitHub App authentication.
 // JWT is valid for 9 minutes (GitHub maximum is 10).
 func (c *Client) buildAppJWT() (string, error) {
-	keyData, err := os.ReadFile(c.cfg.PrivateKeyPath)
-	if err != nil {
-		return "", fmt.Errorf("read private key: %w", err)
+	var keyData []byte
+	if c.cfg.PrivateKeyB64 != "" {
+		decoded, err := base64.StdEncoding.DecodeString(c.cfg.PrivateKeyB64)
+		if err != nil {
+			return "", fmt.Errorf("decode base64 private key: %w", err)
+		}
+		keyData = decoded
+	} else {
+		data, err := os.ReadFile(c.cfg.PrivateKeyPath)
+		if err != nil {
+			return "", fmt.Errorf("read private key: %w", err)
+		}
+		keyData = data
 	}
 
 	block, _ := pem.Decode(keyData)
