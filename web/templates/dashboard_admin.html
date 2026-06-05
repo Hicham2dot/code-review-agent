@@ -59,8 +59,8 @@
   </div>
 
   <div class="tab-bar">
-    <div class="tab active" onclick="showTab('users')">Utilisateurs</div>
-    <div class="tab" onclick="showTab('analyses')">Toutes les analyses</div>
+    <div class="tab active" onclick="showTab('users')" onkeydown="if(event.key==='Enter'||event.key===' ')showTab('users')" tabindex="0" role="tab">Utilisateurs</div>
+    <div class="tab" onclick="showTab('analyses')" onkeydown="if(event.key==='Enter'||event.key===' ')showTab('analyses')" tabindex="0" role="tab">Toutes les analyses</div>
   </div>
 
   <div id="users" class="section active">
