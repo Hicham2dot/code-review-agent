@@ -25,3 +25,8 @@ go.sum
 # Cache
 .cache/
 .code-review-agent-cache/
+
+# Private keys — never commit
+*.pem
+*.key
+*private-key*

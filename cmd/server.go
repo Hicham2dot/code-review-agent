@@ -39,12 +39,10 @@ func initServerCmd() {
 }
 
 func ensureAdminUser(store *storage.Store, adminPassword string) {
-	password := adminPassword
-	if password == "" {
-		password = "changeme"
-		log.Println("WARN: no ADMIN_PASSWORD set, using default password 'changeme' — change it immediately!")
+	if adminPassword == "" {
+		log.Fatal("FATAL: ADMIN_PASSWORD environment variable is not set. Set it before starting the server.")
 	}
-	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	hash, err := bcrypt.GenerateFromPassword([]byte(adminPassword), bcrypt.DefaultCost)
 	if err != nil {
 		log.Printf("failed to hash admin password: %v", err)
 		return
@@ -65,14 +63,12 @@ func ensureAdminUser(store *storage.Store, adminPassword string) {
 		return
 	}
 
-	// Admin already exists — update password if ADMIN_PASSWORD env var is set
-	if adminPassword != "" {
-		if err := store.UpdateUserPassword("admin", string(hash)); err != nil {
-			log.Printf("failed to update admin password: %v", err)
-			return
-		}
-		log.Println("Admin password updated from ADMIN_PASSWORD env var")
+	// Admin already exists — always sync password from ADMIN_PASSWORD env var
+	if err := store.UpdateUserPassword("admin", string(hash)); err != nil {
+		log.Printf("failed to update admin password: %v", err)
+		return
 	}
+	log.Println("Admin password synced from ADMIN_PASSWORD env var")
 }
 
 func runServer(cmd *cobra.Command, args []string) error {
